@@ -1,0 +1,372 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Edit Quiz — EduNova</title>
+    <link href="https://fonts.googleapis.com/css2?family=Syne:wght@700;800&family=DM+Sans:wght@300;400;500&display=swap" rel="stylesheet">
+    <style>
+        *,*::before,*::after{box-sizing:border-box;margin:0;padding:0;}
+        :root{
+            --bg:#08081a;--panel:#0e0e24;--surface:rgba(255,255,255,0.04);
+            --border:rgba(255,255,255,0.07);--accent:#00d4aa;--accent2:#7c6aff;
+            --ai:#e040c8;--text:#eeeeff;--muted:#7070a0;
+        }
+        body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--text);min-height:100vh;padding:40px 16px;}
+        .container{max-width:800px;margin:0 auto;}
+
+        /* ── Header ── */
+        h1{font-family:'Syne',sans-serif;font-size:24px;font-weight:800;margin-bottom:8px;}
+        .page-sub{color:var(--muted);font-size:13px;margin-bottom:28px;}
+
+        /* ── AI Panel ── */
+        .ai-panel{
+            background:linear-gradient(135deg,rgba(224,64,200,0.08),rgba(124,106,255,0.08));
+            border:1px solid rgba(224,64,200,0.25);border-radius:16px;
+            padding:20px 24px;margin-bottom:28px;
+        }
+        .ai-panel-header{display:flex;align-items:center;gap:10px;margin-bottom:14px;}
+        .ai-badge{
+            padding:4px 10px;background:linear-gradient(135deg,var(--ai),var(--accent2));
+            border-radius:20px;font-size:10px;font-weight:800;letter-spacing:.1em;
+            text-transform:uppercase;color:#fff;
+        }
+        .ai-title{font-family:'Syne',sans-serif;font-size:15px;font-weight:700;}
+        .ai-row{display:flex;gap:10px;align-items:flex-end;flex-wrap:wrap;}
+        .ai-field{flex:1;min-width:180px;}
+        .ai-field label{display:block;font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:.07em;color:var(--muted);margin-bottom:6px;}
+        .ai-field input,.ai-field select{
+            width:100%;background:rgba(255,255,255,0.06);border:1px solid var(--border);
+            border-radius:10px;padding:10px 13px;color:var(--text);font-size:13px;
+            outline:none;font-family:'DM Sans',sans-serif;
+        }
+        .ai-field input:focus,.ai-field select:focus{border-color:var(--ai);}
+        .ai-field select option{background:#1a1a2e;}
+        .btn-ai{
+            padding:10px 22px;
+            background:linear-gradient(135deg,var(--ai),var(--accent2));
+            border:none;border-radius:11px;color:#fff;
+            font-family:'Syne',sans-serif;font-size:13px;font-weight:700;
+            cursor:pointer;white-space:nowrap;display:flex;align-items:center;gap:7px;
+            transition:opacity .2s;
+        }
+        .btn-ai:hover{opacity:.88;}
+        .btn-ai:disabled{opacity:.45;cursor:not-allowed;}
+        .ai-spinner{
+            width:14px;height:14px;border:2px solid rgba(255,255,255,.3);
+            border-top-color:#fff;border-radius:50%;
+            animation:spin .7s linear infinite;display:none;
+        }
+        @keyframes spin{to{transform:rotate(360deg);}}
+        .ai-status{font-size:12px;color:var(--muted);margin-top:10px;min-height:16px;}
+
+        /* ── Form fields ── */
+        .form-group{margin-bottom:16px;}
+        label{display:block;font-size:12px;font-weight:600;text-transform:uppercase;color:var(--muted);margin-bottom:8px;letter-spacing:0.08em;}
+        input[type=text],input[type=datetime-local],textarea{
+            width:100%;background:var(--surface);border:1px solid var(--border);
+            border-radius:10px;padding:12px 14px;color:var(--text);font-size:14px;
+            outline:none;font-family:'DM Sans',sans-serif;
+        }
+        input:focus,textarea:focus{border-color:var(--accent);}
+        textarea{resize:vertical;}
+
+        /* ── Question blocks ── */
+        .q-block{
+            background:var(--panel);border:1px solid var(--border);
+            border-radius:14px;padding:18px;margin-bottom:12px;
+            position:relative;animation:qIn .25s ease;
+        }
+        @keyframes qIn{from{opacity:0;transform:translateY(8px);}to{opacity:1;transform:none;}}
+        .q-block.ai-generated{border-color:rgba(224,64,200,.3);}
+        .ai-tag{
+            position:absolute;top:14px;right:48px;
+            font-size:9px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;
+            color:var(--ai);background:rgba(224,64,200,.1);
+            padding:2px 8px;border-radius:10px;
+        }
+        .q-remove{
+            position:absolute;top:12px;right:12px;
+            background:rgba(239,68,68,.12);border:1px solid rgba(239,68,68,.2);
+            border-radius:6px;padding:3px 10px;color:#ff8080;font-size:12px;
+            cursor:pointer;font-family:'DM Sans',sans-serif;
+        }
+        .q-label{font-weight:600;color:var(--accent);margin-bottom:10px;font-size:13px;}
+        .opt-row{display:flex;align-items:center;gap:8px;margin-bottom:8px;}
+        .opt-row input[type=radio]{accent-color:var(--accent);}
+        .opt-input{
+            flex:1;background:rgba(255,255,255,0.04);border:1px solid var(--border);
+            border-radius:8px;padding:8px 12px;color:var(--text);font-size:13px;
+            outline:none;font-family:'DM Sans',sans-serif;
+        }
+        .opt-input:focus{border-color:var(--accent);}
+
+        /* ── Buttons ── */
+        .btn-row{display:flex;gap:10px;margin-top:20px;flex-wrap:wrap;}
+        .btn-primary{
+            padding:12px 28px;background:linear-gradient(135deg,var(--accent),var(--accent2));
+            border:none;border-radius:12px;color:white;font-weight:700;
+            cursor:pointer;font-size:14px;font-family:'DM Sans',sans-serif;
+        }
+        .btn-ghost{
+            padding:12px 22px;background:var(--surface);border:1px solid var(--border);
+            border-radius:12px;color:var(--text);font-weight:600;cursor:pointer;
+            font-size:14px;font-family:'DM Sans',sans-serif;text-decoration:none;
+            display:inline-flex;align-items:center;
+        }
+        .btn-add{
+            padding:10px 20px;background:rgba(0,212,170,.1);
+            border:1px solid rgba(0,212,170,.2);border-radius:10px;
+            color:var(--accent);font-weight:600;cursor:pointer;
+            font-size:13px;font-family:'DM Sans',sans-serif;margin-bottom:12px;
+        }
+        .msg{padding:12px 16px;border-radius:10px;font-size:13px;margin-top:12px;}
+        .msg.ok{background:rgba(0,212,170,.1);color:var(--accent);}
+        .msg.err{background:rgba(239,68,68,.1);color:#ff8080;}
+
+        /* divider */
+        .divider{
+            display:flex;align-items:center;gap:10px;
+            color:var(--muted);font-size:11px;font-weight:600;
+            text-transform:uppercase;letter-spacing:.08em;
+            margin:20px 0 16px;
+        }
+        .divider::before,.divider::after{
+            content:'';flex:1;height:1px;background:var(--border);
+        }
+    </style>
+</head>
+<body>
+<div class="container">
+    <h1>✏️ Edit Quiz: {{ test.title }}</h1>
+    <p class="page-sub">Manually add questions below, or let AI generate them for you.</p>
+
+    <!-- ══════════════ AI GENERATOR PANEL ══════════════ -->
+    <div class="ai-panel">
+        <div class="ai-panel-header">
+            <span class="ai-badge">✦ AI</span>
+            <span class="ai-title">Generate Questions with Claude</span>
+        </div>
+        <div class="ai-row">
+            <div class="ai-field" style="flex:2">
+                <label>Topic / Subject</label>
+                <input type="text" id="ai-topic" placeholder="e.g. Photosynthesis, World War II, Algebra…">
+            </div>
+            <div class="ai-field" style="flex:1">
+                <label>Difficulty</label>
+                <select id="ai-difficulty">
+                    <option value="easy">Easy</option>
+                    <option value="medium" selected>Medium</option>
+                    <option value="hard">Hard</option>
+                </select>
+            </div>
+            <div class="ai-field" style="flex:1">
+                <label>No. of Questions</label>
+                <select id="ai-count">
+                    <option value="3">3</option>
+                    <option value="5" selected>5</option>
+                    <option value="8">8</option>
+                    <option value="10">10</option>
+                </select>
+            </div>
+            <button class="btn-ai" id="ai-btn" onclick="generateWithAI()">
+                <div class="ai-spinner" id="ai-spinner"></div>
+                <span id="ai-btn-label">✦ Generate</span>
+            </button>
+        </div>
+        <div class="ai-status" id="ai-status"></div>
+    </div>
+
+    <!-- ══════════════ MANUAL FIELDS ══════════════ -->
+    <div class="form-group">
+        <label>Quiz Title</label>
+        <input type="text" id="quiz-title" value="{{ test.title }}">
+    </div>
+    <div class="form-group">
+        <label>Due Date (optional)</label>
+        <input type="datetime-local" id="due-date" value="{{ due_date or '' }}">
+    </div>
+
+    <div class="divider">Questions</div>
+    <div id="questions-wrap"></div>
+    <button class="btn-add" onclick="addQuestion()">+ Add Question Manually</button>
+
+    <div class="btn-row">
+        <button class="btn-primary" onclick="saveQuiz()">Save Changes</button>
+        <a href="/teacher" class="btn-ghost">Cancel</a>
+    </div>
+    <div id="msg"></div>
+</div>
+
+<script>
+const testId   = {{ test_id }};
+const existing = {{ questions | tojson }};
+let qCount = 0;
+
+/* ── Render a question block ── */
+function addQuestion(data, isAI) {
+    qCount++;
+    const n    = qCount;
+    const opts = (data && data.options) ? data.options : ['', '', '', ''];
+    const correct = (data && (data.correct_answer || data.answer)) || '';
+
+    const div = document.createElement('div');
+    div.className = 'q-block' + (isAI ? ' ai-generated' : '');
+    div.id = `qb-${n}`;
+
+    // Find the index of the correct option for pre-checking the radio
+    const correctIdx = opts.indexOf(correct);
+
+    div.innerHTML = `
+        ${isAI ? '<span class="ai-tag">✦ AI</span>' : ''}
+        <button class="q-remove" onclick="document.getElementById('qb-${n}').remove()">Remove</button>
+        <div class="q-label">Question ${n}</div>
+        <textarea rows="2" id="qt-${n}" style="margin-bottom:10px">${data ? (data.question_text || data.question || '') : ''}</textarea>
+        ${opts.map((o, i) => `
+            <div class="opt-row">
+                <input type="radio" name="cor-${n}" value="${i}" ${(correctIdx >= 0 ? i === correctIdx : i === 0 && !data) ? 'checked' : ''}>
+                <input class="opt-input" id="opt-${n}-${i}" value="${String(o).replace(/"/g, '&quot;')}" placeholder="Option ${i + 1}">
+            </div>
+        `).join('')}`;
+
+    document.getElementById('questions-wrap').appendChild(div);
+    div.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+}
+
+/* ── Load existing questions ── */
+existing.forEach(q => addQuestion(q, false));
+if (!existing.length) addQuestion(null, false);
+
+/* ══════════════════════════════════════════════
+   AI GENERATION  via Anthropic API
+══════════════════════════════════════════════ */
+async function generateWithAI() {
+    const topic      = document.getElementById('ai-topic').value.trim();
+    const difficulty = document.getElementById('ai-difficulty').value;
+    const count      = parseInt(document.getElementById('ai-count').value, 10);
+    const statusEl   = document.getElementById('ai-status');
+    const spinner    = document.getElementById('ai-spinner');
+    const btn        = document.getElementById('ai-btn');
+    const btnLabel   = document.getElementById('ai-btn-label');
+
+    if (!topic) {
+        statusEl.style.color = '#ff8080';
+        statusEl.textContent = '⚠ Please enter a topic first.';
+        return;
+    }
+
+    // ── UI: loading state ──
+    btn.disabled      = true;
+    spinner.style.display = 'block';
+    btnLabel.textContent  = 'Generating…';
+    statusEl.style.color  = 'var(--muted)';
+    statusEl.textContent  = `Asking Claude to write ${count} ${difficulty} questions about "${topic}"…`;
+
+    const prompt = `You are a quiz creator. Generate exactly ${count} multiple-choice questions about "${topic}" at ${difficulty} difficulty level.
+
+Return ONLY a valid JSON array (no markdown, no explanation, no code fences).
+Each element must be an object with exactly these keys:
+  "question" : string  — the question text
+  "options"  : array of exactly 4 strings — the answer choices
+  "answer"   : string  — must exactly match one of the 4 options
+
+Example of one element:
+{"question":"What is the powerhouse of the cell?","options":["Nucleus","Mitochondria","Ribosome","Golgi body"],"answer":"Mitochondria"}
+
+Now produce ${count} questions about "${topic}" (${difficulty} difficulty). Return only the JSON array.`;
+
+    try {
+        const res = await fetch('https://api.anthropic.com/v1/messages', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                model:      'claude-sonnet-4-20250514',
+                max_tokens: 1000,
+                messages:   [{ role: 'user', content: prompt }]
+            })
+        });
+
+        if (!res.ok) {
+            const err = await res.json().catch(() => ({}));
+            throw new Error(err.error?.message || `HTTP ${res.status}`);
+        }
+
+        const data = await res.json();
+        const raw  = data.content
+            .filter(b => b.type === 'text')
+            .map(b => b.text)
+            .join('');
+
+        // Strip any accidental markdown fences
+        const clean = raw.replace(/```json|```/gi, '').trim();
+        const questions = JSON.parse(clean);
+
+        if (!Array.isArray(questions) || !questions.length) {
+            throw new Error('AI returned an unexpected format.');
+        }
+
+        // Validate and add each question
+        let added = 0;
+        for (const q of questions) {
+            if (!q.question || !Array.isArray(q.options) || q.options.length < 2 || !q.answer) continue;
+            // Pad options to 4 if fewer returned
+            while (q.options.length < 4) q.options.push('');
+            addQuestion(q, true);
+            added++;
+        }
+
+        statusEl.style.color  = '#00d4aa';
+        statusEl.textContent  = `✓ ${added} question${added !== 1 ? 's' : ''} added! Review and edit them below, then click Save.`;
+
+    } catch (err) {
+        console.error('[AI Quiz]', err);
+        statusEl.style.color  = '#ff8080';
+        statusEl.textContent  = `⚠ ${err.message}`;
+    } finally {
+        btn.disabled          = false;
+        spinner.style.display = 'none';
+        btnLabel.textContent  = '✦ Generate';
+    }
+}
+
+/* ══════════════════════════════════════════════
+   SAVE QUIZ
+══════════════════════════════════════════════ */
+async function saveQuiz() {
+    const title = document.getElementById('quiz-title').value.trim();
+    const due   = document.getElementById('due-date').value || null;
+    const msg   = document.getElementById('msg');
+    const questions = [];
+
+    for (const block of document.querySelectorAll('.q-block')) {
+        const n    = block.id.replace('qb-', '');
+        const text = (document.getElementById(`qt-${n}`)?.value || '').trim();
+        const opts = [0, 1, 2, 3].map(i => (document.getElementById(`opt-${n}-${i}`)?.value || '').trim());
+        const rad  = block.querySelector(`input[name="cor-${n}"]:checked`);
+        if (!text || opts.some(o => !o) || !rad) {
+            msg.className   = 'msg err';
+            msg.textContent = 'Fill all question fields and mark the correct answer for each question.';
+            block.scrollIntoView({ behavior: 'smooth', block: 'center' });
+            return;
+        }
+        questions.push({ question: text, options: opts, answer: opts[parseInt(rad.value)] });
+    }
+
+    if (!title || !questions.length) {
+        msg.className   = 'msg err';
+        msg.textContent = 'A title and at least one question are required.';
+        return;
+    }
+
+    const r = await fetch(`/teacher/update_quiz/${testId}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ title, due_date: due, questions })
+    });
+    const d = await r.json();
+    msg.className   = 'msg ' + (d.error ? 'err' : 'ok');
+    msg.textContent = d.error || d.message;
+    if (d.message) setTimeout(() => window.location.href = '/teacher', 1200);
+}
+</script>
+</body>
+</html>

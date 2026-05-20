@@ -1,0 +1,290 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Create a New Quiz</title>
+    <style>
+        body { 
+            font-family: Arial, sans-serif; 
+            margin: 20px; 
+            background-color: #f4f4f9; 
+        }
+        .container { 
+            max-width: 800px; 
+            margin: auto; 
+            background: #fff; 
+            padding: 20px; 
+            border-radius: 8px; 
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1); 
+        }
+        h1 { 
+            color: #333; 
+        }
+        input[type="text"], textarea { 
+            width: 98%; 
+            padding: 10px; 
+            margin-bottom: 10px; 
+            border-radius: 4px; 
+            border: 1px solid #ddd; 
+        }
+        button { 
+            background-color: #007bff; 
+            color: white; 
+            padding: 10px 15px; 
+            border: none; 
+            border-radius: 4px; 
+            cursor: pointer; 
+            font-size: 16px; 
+        }
+        button:hover { 
+            background-color: #0056b3; 
+        }
+        .add-question-btn { 
+            background-color: #28a745; 
+            margin-top: 10px; 
+        }
+        .add-question-btn:hover { 
+            background-color: #218838; 
+        }
+        .question-block { 
+            border: 1px solid #eee; 
+            padding: 15px; 
+            margin-top: 15px; 
+            border-radius: 5px; 
+        }
+        .options-container { 
+            margin-left: 20px; 
+        }
+        .remove-question-btn { 
+            background-color: #dc3545; 
+            font-size: 12px; 
+            padding: 5px 10px; 
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Create a New Quiz</h1>
+
+        <!-- ===== PDF QUIZ GENERATOR ===== -->
+        <div id="pdf-generator-section" style="border:2px dashed #007bff;padding:20px;border-radius:8px;margin-bottom:25px;background:#f0f8ff;">
+            <h2 style="color:#007bff;margin-top:0;">✨ Generate Questions from a PDF</h2>
+            <p style="color:#555;margin-bottom:15px;">Upload a PDF and let AI generate quiz questions automatically. Review and edit them before saving.</p>
+            <div style="display:flex;gap:12px;flex-wrap:wrap;align-items:flex-end;">
+                <div style="flex:1;min-width:200px;">
+                    <label for="pdf-upload" style="display:block;font-weight:bold;margin-bottom:5px;">Select PDF File</label>
+                    <input type="file" id="pdf-upload" accept=".pdf" style="width:100%;padding:8px;border:1px solid #ddd;border-radius:4px;box-sizing:border-box;">
+                </div>
+                <div style="width:160px;">
+                    <label for="num-questions" style="display:block;font-weight:bold;margin-bottom:5px;">No. of Questions</label>
+                    <input type="number" id="num-questions" value="5" min="1" max="20" style="width:100%;padding:8px;border:1px solid #ddd;border-radius:4px;box-sizing:border-box;">
+                </div>
+                <div>
+                    <button type="button" id="generate-btn" onclick="generateFromPdf()" style="background:#007bff;color:white;padding:10px 20px;border:none;border-radius:4px;cursor:pointer;font-size:15px;white-space:nowrap;">
+                        🚀 Generate Questions
+                    </button>
+                </div>
+            </div>
+            <div id="pdf-status" style="margin-top:12px;font-style:italic;color:#555;min-height:20px;"></div>
+        </div>
+        <!-- ===== END PDF GENERATOR ===== -->
+
+        <form id="quiz-form">
+            <div>
+                <label for="quiz-title">Quiz Title:</label>
+                <input type="text" id="quiz-title" name="quiz-title" required>
+            </div>
+            
+            <div id="questions-container">
+                </div>
+
+            <button type="button" class="add-question-btn" onclick="addQuestion()">Add Question</button>
+            <hr>
+            <button type="submit">Save Quiz</button>
+        </form>
+    </div>
+
+<script>
+    let questionCount = 0;
+
+    function addQuestion() {
+        questionCount++;
+        const questionsContainer = document.getElementById('questions-container');
+        const questionBlock = document.createElement('div');
+        questionBlock.className = 'question-block';
+        questionBlock.id = `question-block-${questionCount}`;
+        questionBlock.innerHTML = `
+            <h3>Question ${questionCount}</h3>
+            <label for="question-${questionCount}">Question Text:</label>
+            <textarea id="question-${questionCount}" name="question-${questionCount}" rows="2" required></textarea>
+            
+            <div class="options-container">
+                <label>Options (select the correct answer):</label><br>
+                ${[...Array(4)].map((_, i) => `
+                    <div>
+                        <input type="radio" name="correct-answer-${questionCount}" value="${i}" required>
+                        <input type="text" name="option-${questionCount}-${i}" placeholder="Option ${i + 1}" required>
+                    </div>
+                `).join('')}
+            </div>
+            <button type="button" class="remove-question-btn" onclick="removeQuestion(${questionCount})">Remove Question</button>
+        `;
+        questionsContainer.appendChild(questionBlock);
+    }
+    
+    function removeQuestion(id) {
+        const questionBlock = document.getElementById(`question-block-${id}`);
+        if (questionBlock) {
+            questionBlock.remove();
+        }
+    }
+
+    document.getElementById('quiz-form').addEventListener('submit', function(event) {
+        event.preventDefault();
+        
+        const title = document.getElementById('quiz-title').value;
+        const questions = [];
+        const questionBlocks = document.querySelectorAll('.question-block');
+
+        for (let block of questionBlocks) {
+            const idMatch = block.id.match(/(\d+)$/);
+            if (!idMatch) continue;
+            
+            const qNum = idMatch[0];
+            const questionText = block.querySelector(`#question-${qNum}`).value;
+            const options = [];
+            let correctAnswer = '';
+
+            const optionInputs = block.querySelectorAll(`input[name^="option-${qNum}"]`);
+            optionInputs.forEach(opt => options.push(opt.value));
+
+            const correctAnswerRadio = block.querySelector(`input[name="correct-answer-${qNum}"]:checked`);
+            if (correctAnswerRadio) {
+                correctAnswer = options[parseInt(correctAnswerRadio.value)];
+            }
+
+            if (!questionText || options.some(opt => !opt) || !correctAnswer) {
+                alert('Please fill out all fields for each question.');
+                return;
+            }
+
+            questions.push({
+                question: questionText,
+                options: options,
+                answer: correctAnswer
+            });
+        }
+
+        if (!title || questions.length === 0) {
+            alert('Please provide a title and at least one question.');
+            return;
+        }
+
+        const quizData = {
+            title: title,
+            questions: questions
+        };
+
+        fetch('/create_test', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify(quizData),
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.message) {
+                alert(data.message);
+                window.location.href = '/teacher'; // Redirect to teacher dashboard
+            } else {
+                alert('Error: ' + data.error);
+            }
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            alert('An error occurred while saving the quiz.');
+        });
+    });
+
+    // Add one question by default
+    addQuestion();
+
+    async function generateFromPdf() {
+        const fileInput = document.getElementById('pdf-upload');
+        const numQuestions = document.getElementById('num-questions').value;
+        const statusEl = document.getElementById('pdf-status');
+        const generateBtn = document.getElementById('generate-btn');
+
+        if (!fileInput.files || fileInput.files.length === 0) {
+            statusEl.style.color = '#dc3545';
+            statusEl.textContent = '⚠️ Please select a PDF file first.';
+            return;
+        }
+
+        const formData = new FormData();
+        formData.append('pdf_file', fileInput.files[0]);
+        formData.append('num_questions', numQuestions);
+
+        generateBtn.disabled = true;
+        generateBtn.textContent = '⏳ Generating...';
+        statusEl.style.color = '#555';
+        statusEl.textContent = 'Extracting text and calling AI — this may take a few seconds...';
+
+        try {
+            const response = await fetch('/generate_quiz_from_pdf', {
+                method: 'POST',
+                body: formData
+            });
+            const data = await response.json();
+
+            if (!response.ok || data.error) {
+                throw new Error(data.error || 'Unknown server error');
+            }
+
+            // Clear existing auto-added question and populate with AI results
+            document.getElementById('questions-container').innerHTML = '';
+            questionCount = 0;
+
+            data.questions.forEach(q => {
+                questionCount++;
+                const questionsContainer = document.getElementById('questions-container');
+                const questionBlock = document.createElement('div');
+                questionBlock.className = 'question-block';
+                questionBlock.id = `question-block-${questionCount}`;
+
+                const correctIndex = q.options.indexOf(q.answer);
+
+                questionBlock.innerHTML = `
+                    <h3>Question ${questionCount}</h3>
+                    <label for="question-${questionCount}">Question Text:</label>
+                    <textarea id="question-${questionCount}" name="question-${questionCount}" rows="2" required>${q.question}</textarea>
+                    <div class="options-container">
+                        <label>Options (select the correct answer):</label><br>
+                        ${q.options.map((opt, i) => `
+                            <div>
+                                <input type="radio" name="correct-answer-${questionCount}" value="${i}" ${i === correctIndex ? 'checked' : ''} required>
+                                <input type="text" name="option-${questionCount}-${i}" placeholder="Option ${i + 1}" value="${opt.replace(/"/g, '&quot;')}" required>
+                            </div>
+                        `).join('')}
+                    </div>
+                    <button type="button" class="remove-question-btn" onclick="removeQuestion(${questionCount})">Remove Question</button>
+                `;
+                questionsContainer.appendChild(questionBlock);
+            });
+
+            statusEl.style.color = '#28a745';
+            statusEl.textContent = `✅ ${data.questions.length} questions generated! Review them below, then save the quiz.`;
+
+        } catch (err) {
+            statusEl.style.color = '#dc3545';
+            statusEl.textContent = `❌ Error: ${err.message}`;
+        } finally {
+            generateBtn.disabled = false;
+            generateBtn.textContent = '🚀 Generate Questions';
+        }
+    }
+</script>
+</body>
+</html>

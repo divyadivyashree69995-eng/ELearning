@@ -1,0 +1,73 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Take Test — EduNova</title>
+    <link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;700;800&family=DM+Sans:wght@300;400;500&display=swap" rel="stylesheet">
+    <style>
+        *,*::before,*::after{box-sizing:border-box;margin:0;padding:0;}
+        :root{--bg:#08081a;--panel:#0e0e24;--surface:rgba(255,255,255,0.04);--border:rgba(255,255,255,0.07);--accent:#7c6aff;--text:#eeeeff;--muted:#7070a0;}
+        body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--text);min-height:100vh;padding:40px 16px;}
+        .container{max-width:760px;margin:0 auto;}
+        .test-header{background:linear-gradient(135deg,rgba(124,106,255,0.15),rgba(224,64,200,0.08));border:1px solid rgba(124,106,255,0.2);border-radius:20px;padding:28px 32px;margin-bottom:28px;}
+        .test-title{font-family:'Syne',sans-serif;font-size:26px;font-weight:800;margin-bottom:6px;}
+        .test-sub{color:var(--muted);font-size:14px;}
+        .question-block{background:var(--panel);border:1px solid var(--border);border-radius:20px;padding:28px;margin-bottom:16px;transition:border-color 0.2s;}
+        .question-block:hover{border-color:rgba(124,106,255,0.3);}
+        .q-number{font-size:11px;font-weight:700;color:var(--accent);letter-spacing:0.1em;text-transform:uppercase;margin-bottom:10px;}
+        .q-text{font-size:17px;font-weight:600;line-height:1.5;margin-bottom:20px;}
+        .option{display:flex;align-items:center;gap:12px;padding:14px 18px;background:var(--surface);border:1px solid var(--border);border-radius:14px;cursor:pointer;transition:all 0.2s;margin-bottom:8px;}
+        .option:hover{border-color:var(--accent);background:rgba(124,106,255,0.08);transform:translateX(4px);}
+        .option input[type="radio"]{accent-color:var(--accent);width:18px;height:18px;flex-shrink:0;}
+        .option:has(input:checked){border-color:var(--accent);background:rgba(124,106,255,0.12);}
+        .option-text{font-size:15px;}
+        .submit-area{text-align:center;padding:20px 0;}
+        .submit-btn{padding:16px 48px;background:linear-gradient(135deg,#00d4aa,#00b88a);border:none;border-radius:16px;color:white;font-family:'Syne',sans-serif;font-size:17px;font-weight:700;cursor:pointer;transition:all 0.2s;box-shadow:0 0 20px rgba(0,212,170,0.3);}
+        .submit-btn:hover{transform:translateY(-3px);box-shadow:0 8px 28px rgba(0,212,170,0.4);}
+        .submit-btn:disabled{opacity:0.6;cursor:not-allowed;transform:none;}
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="test-header">
+            <div class="test-title">{{ test_title }}</div>
+            <div class="test-sub">Answer all questions carefully. You can only submit once.</div>
+        </div>
+        <form id="test-form">
+            {% for question in questions %}
+            <div class="question-block">
+                <div class="q-number">Question {{ loop.index }} of {{ questions|length }}</div>
+                <div class="q-text">{{ question.question_text }}</div>
+                <div class="options">
+                    {% for option in question.options %}
+                    <label class="option">
+                        <input type="radio" name="question_{{ question.id }}" value="{{ option }}" required>
+                        <span class="option-text">{{ option }}</span>
+                    </label>
+                    {% endfor %}
+                </div>
+            </div>
+            {% endfor %}
+            <div class="submit-area">
+                <button type="submit" class="submit-btn" id="submit-btn">Submit Answers ✓</button>
+            </div>
+        </form>
+    </div>
+    <script>
+    document.getElementById('test-form').addEventListener('submit', async e => {
+        e.preventDefault();
+        const btn = document.getElementById('submit-btn');
+        btn.disabled = true; btn.textContent = 'Submitting…';
+        const fd = new FormData(e.target);
+        const answers = [];
+        {% for question in questions %}answers.push(fd.get('question_{{ question.id }}'));{% endfor %}
+        try {
+            const r = await fetch('/submit_test',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({test_id:{{ test_id }},answers})});
+            const d = await r.json();
+            if (d.error) { alert('Error: '+d.error); btn.disabled=false; btn.textContent='Submit Answers ✓'; return; }
+            window.location.href = '/quiz_review/{{ test_id }}';
+        } catch(err) { alert('Network error. Please try again.'); btn.disabled=false; btn.textContent='Submit Answers ✓'; }
+    });
+    </script>
+</body>
+</html>

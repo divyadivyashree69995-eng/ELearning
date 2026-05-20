@@ -1,0 +1,392 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Create a New Quiz</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        body { font-family: 'Inter', sans-serif; background-color: #f3f4f6; }
+        .container { max-width: 860px; margin: 2rem auto; padding: 0 1rem 4rem; }
+
+        /* PDF drop zone */
+        #drop-zone {
+            border: 2px dashed #a5b4fc;
+            border-radius: 12px;
+            background: #eef2ff;
+            transition: background 0.2s, border-color 0.2s;
+            cursor: pointer;
+        }
+        #drop-zone.dragover {
+            background: #e0e7ff;
+            border-color: #6366f1;
+        }
+
+        /* Spinner */
+        .spinner {
+            width: 24px; height: 24px;
+            border: 3px solid #c7d2fe;
+            border-top-color: #6366f1;
+            border-radius: 50%;
+            animation: spin 0.7s linear infinite;
+            display: inline-block;
+        }
+        @keyframes spin { to { transform: rotate(360deg); } }
+
+        /* Question cards */
+        .question-card {
+            background: #fff;
+            border: 1px solid #e5e7eb;
+            border-radius: 12px;
+            padding: 1.25rem 1.5rem;
+            margin-top: 1rem;
+            box-shadow: 0 1px 3px rgba(0,0,0,.06);
+            animation: fadeUp .3s ease;
+        }
+        @keyframes fadeUp {
+            from { opacity:0; transform:translateY(12px); }
+            to   { opacity:1; transform:translateY(0); }
+        }
+
+        input[type="text"], textarea, select {
+            width: 100%; padding: .6rem .9rem;
+            border: 1px solid #d1d5db; border-radius: 8px;
+            font-size: .95rem; outline: none;
+            transition: border-color .15s, box-shadow .15s;
+            box-sizing: border-box;
+        }
+        input[type="text"]:focus, textarea:focus, select:focus {
+            border-color: #6366f1;
+            box-shadow: 0 0 0 3px rgba(99,102,241,.15);
+        }
+        textarea { resize: vertical; min-height: 60px; }
+
+        .btn-primary {
+            background: #6366f1; color: #fff; border: none;
+            padding: .65rem 1.25rem; border-radius: 8px;
+            font-weight: 600; cursor: pointer; transition: background .15s, transform .1s;
+        }
+        .btn-primary:hover { background: #4f46e5; transform: translateY(-1px); }
+
+        .btn-success {
+            background: #10b981; color: #fff; border: none;
+            padding: .65rem 1.25rem; border-radius: 8px;
+            font-weight: 600; cursor: pointer; transition: background .15s, transform .1s;
+        }
+        .btn-success:hover { background: #059669; transform: translateY(-1px); }
+
+        .btn-danger {
+            background: #ef4444; color: #fff; border: none;
+            padding: .4rem .85rem; border-radius: 6px;
+            font-size: .82rem; cursor: pointer; transition: background .15s;
+        }
+        .btn-danger:hover { background: #dc2626; }
+
+        .badge-ai {
+            display: inline-flex; align-items: center; gap: .3rem;
+            background: #ede9fe; color: #7c3aed;
+            font-size: .72rem; font-weight: 700; letter-spacing: .04em;
+            padding: .15rem .55rem; border-radius: 99px;
+        }
+
+        .correct-radio { accent-color: #10b981; }
+
+        .toast {
+            position: fixed; bottom: 1.5rem; right: 1.5rem;
+            padding: .75rem 1.25rem; border-radius: 10px;
+            color: #fff; font-weight: 600; font-size: .9rem;
+            box-shadow: 0 4px 14px rgba(0,0,0,.18);
+            z-index: 999; opacity: 0; transition: opacity .3s;
+        }
+        .toast.show { opacity: 1; }
+        .toast.success { background: #10b981; }
+        .toast.error   { background: #ef4444; }
+    </style>
+</head>
+<body>
+<div class="container">
+
+    <!-- ── Page header ── -->
+    <div class="flex items-center justify-between mb-6">
+        <div>
+            <h1 class="text-2xl font-bold text-gray-800">Create a New Quiz</h1>
+            <p class="text-sm text-gray-500 mt-1">Build manually or let AI generate questions from a PDF</p>
+        </div>
+        <a href="/teacher" class="text-sm text-indigo-600 hover:underline font-medium">← Back to Dashboard</a>
+    </div>
+
+    <!-- ══════════════════════════════════════════
+         SECTION 1 — AI PDF Generator
+    ══════════════════════════════════════════ -->
+    <div class="bg-white rounded-2xl shadow-sm border border-indigo-100 p-6 mb-6">
+        <div class="flex items-center gap-2 mb-4">
+            <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 text-indigo-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                      d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.347.416A4.992 4.992 0 0112 17a4.992 4.992 0 01-3.79-1.751l-.347-.416z"/>
+            </svg>
+            <h2 class="text-lg font-semibold text-gray-800">AI Question Generator</h2>
+            <span class="badge-ai">✦ AI-Powered</span>
+        </div>
+
+        <!-- Drop zone -->
+        <div id="drop-zone" class="flex flex-col items-center justify-center gap-2 py-8 px-4 rounded-xl mb-4"
+             onclick="document.getElementById('pdf-input').click()">
+            <svg xmlns="http://www.w3.org/2000/svg" class="h-10 w-10 text-indigo-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5"
+                      d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12"/>
+            </svg>
+            <p class="text-sm font-medium text-indigo-700">Click or drag a PDF here</p>
+            <p class="text-xs text-gray-400">Text-based PDFs only (no scanned images)</p>
+            <input type="file" id="pdf-input" accept=".pdf" class="hidden">
+        </div>
+
+        <!-- Selected file name -->
+        <p id="file-name" class="text-xs text-gray-500 mb-4 text-center hidden"></p>
+
+        <!-- Controls row -->
+        <div class="flex flex-wrap items-end gap-3">
+            <div>
+                <label class="block text-xs font-semibold text-gray-600 mb-1">Number of questions</label>
+                <select id="num-questions" class="w-36">
+                    <option value="3">3 questions</option>
+                    <option value="5" selected>5 questions</option>
+                    <option value="8">8 questions</option>
+                    <option value="10">10 questions</option>
+                    <option value="15">15 questions</option>
+                    <option value="20">20 questions</option>
+                </select>
+            </div>
+            <button id="generate-btn" class="btn-primary flex items-center gap-2" onclick="generateFromPDF()">
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                          d="M13 10V3L4 14h7v7l9-11h-7z"/>
+                </svg>
+                Generate Questions
+            </button>
+            <div id="generating-indicator" class="hidden flex items-center gap-2 text-indigo-600 text-sm font-medium">
+                <span class="spinner"></span> Analysing PDF and generating questions…
+            </div>
+        </div>
+    </div>
+
+    <!-- ══════════════════════════════════════════
+         SECTION 2 — Quiz form
+    ══════════════════════════════════════════ -->
+    <div class="bg-white rounded-2xl shadow-sm border border-gray-100 p-6">
+        <h2 class="text-lg font-semibold text-gray-800 mb-4">Quiz Details</h2>
+
+        <div class="mb-4">
+            <label for="quiz-title" class="block text-sm font-semibold text-gray-600 mb-1">Quiz Title <span class="text-red-400">*</span></label>
+            <input type="text" id="quiz-title" placeholder="e.g. Chapter 3 Review">
+        </div>
+
+        <div id="questions-container" class="space-y-1"></div>
+
+        <div class="flex flex-wrap gap-3 mt-5">
+            <button type="button" class="btn-success" onclick="addQuestion()">
+                + Add Question Manually
+            </button>
+            <button type="button" class="btn-primary" onclick="saveQuiz()">
+                💾 Save Quiz
+            </button>
+        </div>
+    </div>
+</div>
+
+<!-- Toast notification -->
+<div id="toast" class="toast"></div>
+
+<script>
+    let questionCount = 0;
+
+    /* ── Drag-and-drop on the drop zone ── */
+    const dropZone = document.getElementById('drop-zone');
+    const pdfInput = document.getElementById('pdf-input');
+
+    dropZone.addEventListener('dragover', e => { e.preventDefault(); dropZone.classList.add('dragover'); });
+    dropZone.addEventListener('dragleave', () => dropZone.classList.remove('dragover'));
+    dropZone.addEventListener('drop', e => {
+        e.preventDefault();
+        dropZone.classList.remove('dragover');
+        const file = e.dataTransfer.files[0];
+        if (file && file.type === 'application/pdf') {
+            pdfInput.files = e.dataTransfer.files;
+            showFileName(file.name);
+        } else {
+            showToast('Please drop a PDF file.', 'error');
+        }
+    });
+
+    pdfInput.addEventListener('change', () => {
+        if (pdfInput.files[0]) showFileName(pdfInput.files[0].name);
+    });
+
+    function showFileName(name) {
+        const el = document.getElementById('file-name');
+        el.textContent = '📎 ' + name;
+        el.classList.remove('hidden');
+    }
+
+    /* ── Generate questions from PDF ── */
+    async function generateFromPDF() {
+        const file = pdfInput.files[0];
+        if (!file) { showToast('Please select a PDF file first.', 'error'); return; }
+
+        const numQ = document.getElementById('num-questions').value;
+        const btn  = document.getElementById('generate-btn');
+        const ind  = document.getElementById('generating-indicator');
+
+        btn.disabled = true; btn.classList.add('opacity-50');
+        ind.classList.remove('hidden');
+
+        const formData = new FormData();
+        formData.append('pdf', file);
+        formData.append('num_questions', numQ);
+
+        try {
+            const res  = await fetch('/generate_quiz_from_pdf', { method: 'POST', body: formData });
+            const data = await res.json();
+
+            if (!res.ok || data.error) {
+                showToast(data.error || 'Generation failed. Try again.', 'error');
+                return;
+            }
+
+            // Clear existing questions and populate with AI ones
+            document.getElementById('questions-container').innerHTML = '';
+            questionCount = 0;
+
+            data.questions.forEach(q => addQuestion(q));
+
+            // Auto-fill title if empty
+            if (!document.getElementById('quiz-title').value) {
+                document.getElementById('quiz-title').value = file.name.replace('.pdf', '').replace(/_/g, ' ');
+            }
+
+            showToast(`${data.questions.length} questions generated! Review and save.`, 'success');
+        } catch (err) {
+            showToast('Network error. Please try again.', 'error');
+        } finally {
+            btn.disabled = false; btn.classList.remove('opacity-50');
+            ind.classList.add('hidden');
+        }
+    }
+
+    /* ── Add a question card ── */
+    function addQuestion(prefill = null) {
+        questionCount++;
+        const qNum = questionCount;
+        const container = document.getElementById('questions-container');
+        const card = document.createElement('div');
+        card.className = 'question-card';
+        card.id = `question-block-${qNum}`;
+
+        const optionFields = [0,1,2,3].map(i => {
+            const val   = prefill ? escapeHtml(prefill.options[i] || '') : '';
+            const isCorrect = prefill && prefill.options[i] === prefill.answer;
+            return `
+            <label class="flex items-center gap-2 p-2 rounded-lg hover:bg-gray-50 cursor-pointer">
+                <input type="radio" name="correct-answer-${qNum}" value="${i}"
+                       class="correct-radio h-4 w-4 flex-shrink-0"
+                       ${isCorrect ? 'checked' : ''}>
+                <input type="text" name="option-${qNum}-${i}"
+                       placeholder="Option ${i+1}"
+                       value="${val}" required>
+            </label>`;
+        }).join('');
+
+        const questionText = prefill ? escapeHtml(prefill.question) : '';
+        const aiTag = prefill ? '<span class="badge-ai ml-2">✦ AI</span>' : '';
+
+        card.innerHTML = `
+            <div class="flex justify-between items-start mb-3">
+                <h3 class="font-semibold text-gray-700">Question ${qNum} ${aiTag}</h3>
+                <button type="button" class="btn-danger" onclick="removeQuestion(${qNum})">Remove</button>
+            </div>
+            <div class="mb-3">
+                <label class="text-xs font-semibold text-gray-500 uppercase tracking-wide">Question Text</label>
+                <textarea id="question-${qNum}" name="question-${qNum}" rows="2"
+                          placeholder="Enter question..." required>${questionText}</textarea>
+            </div>
+            <div>
+                <label class="text-xs font-semibold text-gray-500 uppercase tracking-wide block mb-1">
+                    Options — <span class="text-green-600 normal-case font-normal">select the correct answer</span>
+                </label>
+                <div class="space-y-1">${optionFields}</div>
+            </div>`;
+
+        container.appendChild(card);
+    }
+
+    function removeQuestion(id) {
+        const el = document.getElementById(`question-block-${id}`);
+        if (el) el.remove();
+    }
+
+    /* ── Save quiz ── */
+    async function saveQuiz() {
+        const title = document.getElementById('quiz-title').value.trim();
+        if (!title) { showToast('Please enter a quiz title.', 'error'); return; }
+
+        const blocks = document.querySelectorAll('.question-card');
+        if (blocks.length === 0) { showToast('Add at least one question.', 'error'); return; }
+
+        const questions = [];
+        for (const block of blocks) {
+            const idMatch = block.id.match(/(\d+)$/);
+            if (!idMatch) continue;
+            const qNum = idMatch[0];
+
+            const questionText = block.querySelector(`#question-${qNum}`).value.trim();
+            const options = [];
+            block.querySelectorAll(`input[name^="option-${qNum}"]`).forEach(opt => options.push(opt.value.trim()));
+
+            const correctRadio = block.querySelector(`input[name="correct-answer-${qNum}"]:checked`);
+            if (!questionText || options.some(o => !o) || !correctRadio) {
+                showToast('Please fill out all fields and select a correct answer for each question.', 'error');
+                return;
+            }
+
+            questions.push({
+                question: questionText,
+                options,
+                answer: options[parseInt(correctRadio.value)]
+            });
+        }
+
+        try {
+            const res  = await fetch('/create_test', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ title, questions })
+            });
+            const data = await res.json();
+            if (data.message) {
+                showToast(data.message, 'success');
+                setTimeout(() => window.location.href = '/teacher', 1200);
+            } else {
+                showToast('Error: ' + data.error, 'error');
+            }
+        } catch (err) {
+            showToast('Network error while saving quiz.', 'error');
+        }
+    }
+
+    /* ── Helpers ── */
+    function escapeHtml(str) {
+        return str.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+    }
+
+    function showToast(msg, type = 'success') {
+        const t = document.getElementById('toast');
+        t.textContent = msg;
+        t.className = `toast ${type} show`;
+        setTimeout(() => t.classList.remove('show'), 3500);
+    }
+
+    // Start with one blank question
+    addQuestion();
+</script>
+</body>
+</html>

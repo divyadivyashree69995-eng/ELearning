@@ -1,0 +1,325 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Admin Dashboard — EduNova</title>
+    <link href="https://fonts.googleapis.com/css2?family=Syne:wght@700;800&family=DM+Sans:wght@300;400;500&display=swap" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        *, *::before, *::after { box-sizing:border-box;margin:0;padding:0; }
+        :root { --bg:#08081a;--panel:#0e0e24;--surface:rgba(255,255,255,0.04);--border:rgba(255,255,255,0.07);--accent:#7c6aff;--accent2:#e040c8;--text:#eeeeff;--muted:#7070a0; }
+        body { font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--text);min-height:100vh; }
+        nav { background:var(--panel);border-bottom:1px solid var(--border);padding:0 28px;display:flex;align-items:center;justify-content:space-between;height:64px;position:sticky;top:0;z-index:100; }
+        .nav-brand { font-family:'Syne',sans-serif;font-size:20px;font-weight:800;background:linear-gradient(90deg,var(--accent),var(--accent2));-webkit-background-clip:text;-webkit-text-fill-color:transparent; }
+        .nav-links { display:flex;gap:4px; }
+        .nav-btn { padding:7px 13px;border-radius:10px;color:var(--muted);font-size:13px;font-weight:500;cursor:pointer;transition:all 0.2s;border:none;background:none;font-family:'DM Sans',sans-serif; }
+        .nav-btn:hover,.nav-btn.active { color:var(--text);background:var(--surface); }
+        .logout-btn { padding:8px 16px;border-radius:10px;background:rgba(239,68,68,0.1);border:1px solid rgba(239,68,68,0.2);color:#ff8080;font-size:13px;font-weight:600;text-decoration:none; }
+        .user-chip { display:flex;align-items:center;gap:8px;padding:6px 14px;background:var(--surface);border:1px solid var(--border);border-radius:20px;font-size:13px; }
+        .dot { width:8px;height:8px;border-radius:50%;background:#e040c8;box-shadow:0 0 6px #e040c8; }
+        .page { display:none;padding:28px;max-width:1200px;margin:0 auto; }
+        .page.active { display:block; }
+        .section-title { font-family:'Syne',sans-serif;font-size:22px;font-weight:800;margin-bottom:20px; }
+        .stats-row { display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:16px;margin-bottom:28px; }
+        .stat-card { background:var(--panel);border:1px solid var(--border);border-radius:16px;padding:20px;text-align:center; }
+        .stat-val { font-family:'Syne',sans-serif;font-size:30px;font-weight:800;margin-bottom:4px; }
+        .stat-lbl { font-size:12px;color:var(--muted);text-transform:uppercase;letter-spacing:0.08em; }
+        .card { background:var(--panel);border:1px solid var(--border);border-radius:18px;padding:24px;margin-bottom:20px; }
+        .card-title { font-family:'Syne',sans-serif;font-size:16px;font-weight:700;margin-bottom:16px; }
+        .table-wrap { overflow-x:auto;border-radius:12px;border:1px solid var(--border); }
+        table { width:100%;border-collapse:collapse; }
+        th { background:rgba(255,255,255,0.03);padding:12px 16px;text-align:left;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:0.08em;color:var(--muted); }
+        td { padding:12px 16px;border-top:1px solid var(--border);font-size:14px; }
+        tr:hover td { background:rgba(255,255,255,0.02); }
+        .btn-del { padding:5px 12px;background:rgba(239,68,68,0.12);border:1px solid rgba(239,68,68,0.25);border-radius:7px;color:#ff8080;font-size:12px;font-weight:600;cursor:pointer;font-family:'DM Sans',sans-serif; }
+        .btn-del:hover { background:rgba(239,68,68,0.22); }
+        .btn-approve { padding:5px 12px;background:rgba(0,212,170,0.12);border:1px solid rgba(0,212,170,0.25);border-radius:7px;color:#00d4aa;font-size:12px;font-weight:600;cursor:pointer;font-family:'DM Sans',sans-serif; }
+        .btn-approve:hover { background:rgba(0,212,170,0.22); }
+        .audit-row { padding:10px 0;border-bottom:1px solid var(--border);font-size:13px; }
+        .audit-row:last-child { border-bottom:none; }
+        .audit-who { color:var(--accent);font-weight:600; }
+        .audit-time { color:var(--muted);font-size:11px;float:right; }
+        .sentiment-bar { display:flex;height:18px;border-radius:6px;overflow:hidden;margin-bottom:6px; }
+        .s-pos { background:#00d4aa; }
+        .s-neg { background:#ef4444; }
+        .s-neu { background:#7070a0; }
+        .spinner { display:inline-block;width:16px;height:16px;border:2px solid rgba(255,255,255,0.15);border-top-color:var(--accent);border-radius:50%;animation:spin 0.8s linear infinite;vertical-align:middle; }
+        @keyframes spin { to{transform:rotate(360deg);} }
+        .empty { color:var(--muted);font-size:14px;padding:16px 0; }
+        .toast { position:fixed;top:20px;right:20px;padding:14px 20px;border-radius:12px;color:white;font-weight:600;z-index:999;font-size:14px;box-shadow:0 8px 32px rgba(0,0,0,0.4); }
+        .pending-alert { background:rgba(251,191,36,0.08);border:1px solid rgba(251,191,36,0.2);border-radius:12px;padding:16px;margin-bottom:20px; }
+    </style>
+</head>
+<body>
+<nav>
+    <div class="nav-brand">EduNova Admin</div>
+    <div class="nav-links">
+        <button class="nav-btn active" onclick="showPage('overview',this)">📊 Overview</button>
+        <button class="nav-btn" onclick="showPage('students',this)">👨‍🎓 Students</button>
+        <button class="nav-btn" onclick="showPage('teachers',this)">👩‍🏫 Teachers</button>
+        <button class="nav-btn" onclick="showPage('content',this)">📁 Content</button>
+        <button class="nav-btn" onclick="showPage('audit',this)">🔍 Audit</button>
+        
+    </div>
+    <div style="display:flex;gap:10px;align-items:center">
+        <div class="user-chip"><div class="dot"></div><span>{{ username }}</span></div>
+        <a class="logout-btn" href="/logout">Logout</a>
+    </div>
+</nav>
+
+<!-- OVERVIEW -->
+<div class="page active" id="page-overview">
+    <div class="section-title">Platform Overview</div>
+    <div class="stats-row">
+        <div class="stat-card"><div class="stat-val" id="total-students">—</div><div class="stat-lbl">Students</div></div>
+        <div class="stat-card"><div class="stat-val" id="total-teachers">—</div><div class="stat-lbl">Teachers</div></div>
+        <div class="stat-card"><div class="stat-val" id="total-content">—</div><div class="stat-lbl">Content</div></div>
+        <div class="stat-card"><div class="stat-val" id="pending-count" style="color:#fbbf24">—</div><div class="stat-lbl">Pending Teachers</div></div>
+    </div>
+    <div id="pending-section"></div>
+    <div class="card">
+        <div class="card-title">Score Distribution</div>
+        <canvas id="performanceChart" height="100"></canvas>
+    </div>
+</div>
+
+<!-- STUDENTS -->
+<div class="page" id="page-students">
+    <div class="section-title">👨‍🎓 Students</div>
+    <div class="card">
+        <div class="table-wrap">
+            <table><thead><tr><th>Username</th><th>Class</th><th>Last Active</th><th>Action</th></tr></thead>
+            <tbody id="students-tbody"><tr><td colspan="4"><div class="spinner"></div></td></tr></tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+<!-- TEACHERS -->
+<div class="page" id="page-teachers">
+    <div class="section-title">👩‍🏫 Teachers</div>
+    <div class="card">
+        <div class="table-wrap">
+            <table><thead><tr><th>Username</th><th>Approval</th><th>Last Active</th><th>Actions</th></tr></thead>
+            <tbody id="teachers-tbody"><tr><td colspan="4"><div class="spinner"></div></td></tr></tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+<!-- CONTENT -->
+<div class="page" id="page-content">
+    <div class="section-title">📁 All Content</div>
+    <div class="card">
+        <div class="table-wrap">
+            <table><thead><tr><th>Title</th><th>Type</th><th>Uploaded By</th><th>Date</th><th>Views</th><th>Actions</th></tr></thead>
+            <tbody id="content-tbody"><tr><td colspan="6"><div class="spinner"></div></td></tr></tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+<!-- AUDIT -->
+<div class="page" id="page-audit">
+    <div class="section-title">🔍 Audit Log <span style="font-size:13px;font-weight:400;color:var(--muted)">(last 100 actions)</span></div>
+    <div class="card"><div id="audit-list"><div class="spinner"></div></div></div>
+</div>
+
+<!-- SENTIMENT -->
+<div class="page" id="page-sentiment">
+    <div class="section-title">😊 Comment Sentiment</div>
+    <div class="card"><div id="sentiment-wrap"><div class="spinner"></div></div></div>
+</div>
+
+<script>
+function showPage(name, btn) {
+    document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+    document.querySelectorAll('.nav-btn').forEach(b => b.classList.remove('active'));
+    document.getElementById('page-'+name).classList.add('active');
+    if (btn) btn.classList.add('active');
+    if (name==='students')  loadUsers('student','students-tbody');
+    if (name==='teachers')  loadUsers('teacher','teachers-tbody');
+    if (name==='content')   loadAllContent();
+    if (name==='audit')     loadAudit();
+    if (name==='sentiment') loadSentiment();
+}
+
+window.addEventListener('DOMContentLoaded', () => {
+    loadStats();
+    renderChart();
+});
+
+async function loadStats() {
+    const res = await fetch('/admin/dashboard_stats');
+    const d   = await res.json();
+    document.getElementById('total-students').textContent = d.total_students;
+    document.getElementById('total-teachers').textContent = d.total_teachers;
+    document.getElementById('total-content').textContent  = d.total_content;
+    document.getElementById('pending-count').textContent  = d.pending_teachers;
+    if (d.pending_teachers > 0) loadPendingTeachers();
+}
+
+async function loadPendingTeachers() {
+    const res  = await fetch('/admin/get_users/teacher');
+    const data = await res.json();
+    const pend = data.filter(u => !u.is_approved);
+    const sec  = document.getElementById('pending-section');
+    if (!pend.length) { sec.innerHTML=''; return; }
+    sec.innerHTML = `<div class="pending-alert">
+        <div style="font-weight:700;color:#fbbf24;margin-bottom:10px">⏳ ${pend.length} teacher(s) awaiting approval</div>
+        ${pend.map(u=>`<div style="display:flex;justify-content:space-between;align-items:center;padding:8px 0;border-bottom:1px solid rgba(255,255,255,0.05)">
+            <span style="font-weight:600">${u.username}</span>
+            <button class="btn-approve" onclick="approveTeacher(${u.id})">✓ Approve</button>
+        </div>`).join('')}
+    </div>`;
+}
+
+async function approveTeacher(uid) {
+    const res = await fetch(`/admin/approve_teacher/${uid}`, { method:'POST' });
+    const d   = await res.json();
+    toast(d.message||d.error, d.error?'#ef4444':'#00d4aa');
+    loadStats(); loadPendingTeachers();
+}
+
+let chart = null;
+async function renderChart() {
+    const res = await fetch('/admin/get_performance_distribution');
+    const d   = await res.json();
+    const ctx = document.getElementById('performanceChart').getContext('2d');
+    if (d.error || !d.labels?.length) {
+        ctx.font='14px sans-serif'; ctx.fillStyle='#7070a0'; ctx.fillText('No score data yet.',10,40); return;
+    }
+    if (chart) chart.destroy();
+    chart = new Chart(ctx, {
+        type:'bar', data:d,
+        options:{ scales:{ y:{beginAtZero:true,ticks:{color:'#7070a0',precision:0},grid:{color:'rgba(255,255,255,0.04)'}}, x:{ticks:{color:'#7070a0'},grid:{color:'rgba(255,255,255,0.04)'}} }, plugins:{legend:{labels:{color:'#eeeeff'}}} }
+    });
+}
+
+async function loadUsers(role, tbodyId) {
+    const tbody = document.getElementById(tbodyId);
+    tbody.innerHTML=`<tr><td colspan="4"><div class="spinner"></div></td></tr>`;
+    const res  = await fetch(`/admin/get_users/${role}`);
+    const data = await res.json();
+    if (!data.length) { tbody.innerHTML=`<tr><td colspan="4" style="color:var(--muted)">No ${role}s found.</td></tr>`; return; }
+    tbody.innerHTML = data.map(u => {
+        if (role==='teacher') return `<tr>
+            <td><strong>${u.username}</strong></td>
+            <td>${u.is_approved ? '<span style="color:#00d4aa">✓ Active</span>' : '<span style="color:#fbbf24">⏳ Pending</span>'}</td>
+            <td style="color:var(--muted)">${u.last_active||'Never'}</td>
+            <td style="display:flex;gap:6px">
+                ${!u.is_approved?`<button class="btn-approve" onclick="approveTeacher(${u.id})">Approve</button>`:''}
+                <button class="btn-del" onclick="deleteUser(${u.id},'${role}','${tbodyId}')">Delete</button>
+            </td></tr>`;
+        return `<tr>
+            <td><strong>${u.username}</strong></td>
+            <td style="color:var(--muted)">${u.class_name||'—'}</td>
+            <td style="color:var(--muted)">${u.last_active||'Never'}</td>
+            <td><button class="btn-del" onclick="deleteUser(${u.id},'${role}','${tbodyId}')">Delete</button></td></tr>`;
+    }).join('');
+}
+
+async function deleteUser(uid, role, tbodyId) {
+    if (!confirm(`Delete this ${role}? This cannot be undone.`)) return;
+    const res = await fetch(`/admin/delete_user/${uid}`, {method:'DELETE'});
+    const d   = await res.json();
+    toast(d.message||d.error, d.error?'#ef4444':'#7c6aff');
+    loadUsers(role,tbodyId); loadStats();
+}
+
+async function loadAllContent() {
+    const tbody = document.getElementById('content-tbody');
+    tbody.innerHTML=`<tr><td colspan="6"><div class="spinner"></div></td></tr>`;
+    const res  = await fetch('/admin/all_content');
+    const data = await res.json();
+    if (!data.length) { tbody.innerHTML=`<tr><td colspan="6" style="color:var(--muted)">No content yet.</td></tr>`; return; }
+    const typeColor = { video:'#ff8080', photo:'#4ade80', pdf:'#60a5fa' };
+    tbody.innerHTML = data.map(c=>`<tr>
+        <td><strong>${c.title}</strong></td>
+        <td><span style="background:rgba(255,255,255,0.06);color:${typeColor[c.file_type]||'#fff'};padding:2px 8px;border-radius:5px;font-size:11px;font-weight:700;text-transform:uppercase">${c.file_type}</span></td>
+        <td style="color:var(--muted)">${c.uploaded_by||'—'}</td>
+        <td style="color:var(--muted)">${c.upload_date}</td>
+        <td>${c.view_count||0}</td>
+        <td style="display:flex;gap:6px">
+            <button class="btn-approve" onclick="adminViewContent(${c.id}, '${c.file_type}')">View</button>
+            <button class="btn-del" onclick="adminDeleteContent(${c.id})">Delete</button>
+        </td>
+    </tr>`).join('');
+}
+
+function adminViewContent(cid, ftype) {
+    const url = '/view_content/' + cid;
+    if (ftype === 'pdf') {
+        // Open PDF inline in a new tab
+        window.open(url, '_blank');
+    } else if (ftype === 'video') {
+        const win = window.open('', '_blank');
+        win.document.write('<html><body style="margin:0;background:#000"><video src="' + url + '" controls autoplay style="width:100%;max-height:100vh"></video></body></html>');
+    } else if (ftype === 'photo') {
+        const win = window.open('', '_blank');
+        win.document.write('<html><body style="margin:0;background:#111;display:flex;align-items:center;justify-content:center;min-height:100vh"><img src="' + url + '" style="max-width:100%;max-height:100vh;object-fit:contain"></body></html>');
+    } else {
+        window.open(url, '_blank');
+    }
+}
+
+async function adminDeleteContent(cid) {
+    if (!confirm('Delete this content permanently?')) return;
+    const res = await fetch(`/delete_content/${cid}`, {method:'DELETE'});
+    const d   = await res.json();
+    toast(d.message||d.error, d.error?'#ef4444':'#7c6aff');
+    loadAllContent(); loadStats();
+}
+
+async function loadAudit() {
+    const el = document.getElementById('audit-list');
+    el.innerHTML='<div class="spinner"></div>';
+    const res  = await fetch('/admin/audit_log');
+    const data = await res.json();
+    if (!data.length) { el.innerHTML='<p class="empty">No audit entries.</p>'; return; }
+    el.innerHTML = data.map(r=>`<div class="audit-row">
+        <span class="audit-who">${r.actor_username}</span> → <strong>${r.action}</strong>
+        ${r.details?`<span style="color:var(--muted)"> — ${r.details}</span>`:''}
+        <span class="audit-time">${r.created_at}</span>
+    </div>`).join('');
+}
+
+async function loadSentiment() {
+    const wrap = document.getElementById('sentiment-wrap');
+    wrap.innerHTML='<div class="spinner"></div>';
+    const res  = await fetch('/admin/sentiment_data');
+    const data = await res.json();
+    if (!data.length) { wrap.innerHTML='<p class="empty">No comment sentiment data yet.</p>'; return; }
+    const grouped = {};
+    data.forEach(r => {
+        if (!grouped[r.title]) grouped[r.title]={positive:0,negative:0,neutral:0};
+        grouped[r.title][r.sentiment]=(grouped[r.title][r.sentiment]||0)+r.cnt;
+    });
+    let html='';
+    for (const [title,c] of Object.entries(grouped)) {
+        const total=(c.positive||0)+(c.negative||0)+(c.neutral||0);
+        const pp=total?Math.round(c.positive/total*100):0;
+        const np=total?Math.round(c.negative/total*100):0;
+        const nup=100-pp-np;
+        html+=`<div style="margin-bottom:20px">
+            <div style="font-weight:600;margin-bottom:8px">${title}</div>
+            <div class="sentiment-bar">
+                ${pp?`<div class="s-pos" style="flex:${pp}" title="Positive ${pp}%"></div>`:''}
+                ${np?`<div class="s-neg" style="flex:${np}" title="Negative ${np}%"></div>`:''}
+                ${nup?`<div class="s-neu" style="flex:${nup}" title="Neutral ${nup}%"></div>`:''}
+            </div>
+            <div style="font-size:11px;display:flex;gap:14px">
+                <span style="color:#00d4aa">✓ Positive: ${c.positive||0}</span>
+                <span style="color:#ef4444">✗ Negative: ${c.negative||0}</span>
+                <span style="color:var(--muted)">Neutral: ${c.neutral||0}</span>
+            </div>
+        </div>`;
+    }
+    wrap.innerHTML = html||'<p class="empty">No data.</p>';
+}
+
+function toast(msg,bg='#7c6aff'){const el=document.createElement('div');el.className='toast';el.style.background=bg;el.textContent=msg;document.body.appendChild(el);setTimeout(()=>el.remove(),4000);}
+</script>
+</body>
+</html>

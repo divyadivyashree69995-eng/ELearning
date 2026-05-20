@@ -1,0 +1,379 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Student Dashboard — EduNova</title>
+<link href="https://fonts.googleapis.com/css2?family=Syne:wght@700;800&family=DM+Sans:wght@300;400;500&display=swap" rel="stylesheet">
+<script src="https://cdn.socket.io/4.7.5/socket.io.min.js"></script>
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+:root{--bg:#08081a;--panel:#0e0e24;--surface:rgba(255,255,255,.04);--border:rgba(255,255,255,.07);--accent:#7c6aff;--accent2:#e040c8;--green:#00d4aa;--text:#eeeeff;--muted:#7070a0}
+body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--text);min-height:100vh}
+nav{background:var(--panel);border-bottom:1px solid var(--border);padding:0 20px;display:flex;align-items:center;justify-content:space-between;height:58px;position:sticky;top:0;z-index:100}
+.brand{font-family:'Syne',sans-serif;font-size:17px;font-weight:800;background:linear-gradient(90deg,var(--accent),var(--accent2));-webkit-background-clip:text;-webkit-text-fill-color:transparent}
+.links{display:flex;gap:2px;flex-wrap:wrap}
+.nb{padding:6px 10px;border-radius:7px;border:none;background:none;color:var(--muted);font-size:12px;cursor:pointer;transition:all .2s}
+.nb:hover,.nb.on{color:var(--text);background:var(--surface)}
+.nr{display:flex;gap:7px;align-items:center}
+.chip{display:flex;align-items:center;gap:5px;padding:4px 10px;background:var(--surface);border:1px solid var(--border);border-radius:20px;font-size:12px}
+.chip .dot{width:6px;height:6px;border-radius:50%;background:var(--green);box-shadow:0 0 5px var(--green)}
+.lo{padding:5px 12px;border-radius:7px;background:rgba(239,68,68,.1);border:1px solid rgba(239,68,68,.2);color:#ff8080;font-size:11px;font-weight:600;text-decoration:none}
+.page{display:none;padding:22px;max-width:1060px;margin:0 auto}
+.page.on{display:block}
+.st{font-family:'Syne',sans-serif;font-size:19px;font-weight:800;margin-bottom:16px}
+/* progress */
+.pg{display:grid;grid-template-columns:repeat(auto-fit,minmax(155px,1fr));gap:11px;margin-bottom:22px}
+.pc{background:var(--panel);border:1px solid var(--border);border-radius:13px;padding:16px;text-align:center}
+.pv{font-family:'Syne',sans-serif;font-size:26px;font-weight:800;margin-bottom:2px}
+.pl{font-size:10px;color:var(--muted);text-transform:uppercase;letter-spacing:.07em}
+.bw{background:rgba(255,255,255,.05);border-radius:3px;height:4px;margin-top:7px;overflow:hidden}
+.bf{height:100%;border-radius:3px;transition:width .9s ease}
+/* content */
+.srch{width:100%;padding:10px 13px;background:var(--surface);border:1px solid var(--border);border-radius:9px;color:var(--text);font-size:13px;outline:none;margin-bottom:13px;font-family:'DM Sans',sans-serif}
+.srch:focus{border-color:var(--accent)}
+.srch::placeholder{color:var(--muted)}
+.cg{display:grid;grid-template-columns:repeat(auto-fill,minmax(265px,1fr));gap:13px}
+.cc{background:var(--panel);border:1px solid var(--border);border-radius:13px;padding:13px;transition:border-color .2s,transform .2s}
+.cc:hover{border-color:rgba(124,106,255,.35);transform:translateY(-2px)}
+.ct{display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:6px}
+.ctitle{font-weight:600;font-size:13px}
+.tbadge{font-size:10px;background:rgba(124,106,255,.15);color:var(--accent);padding:2px 7px;border-radius:20px;font-weight:700;display:inline-block;margin-top:3px}
+.cmeta{font-size:11px;color:var(--muted);margin-top:4px}
+.bmb{background:none;border:none;cursor:pointer;font-size:15px;padding:2px 4px;border-radius:5px;transition:transform .2s}
+.bmb:hover{transform:scale(1.2)}
+.bmb.on{filter:drop-shadow(0 0 3px #f59e0b)}
+/* quiz */
+.qc{background:var(--panel);border:1px solid var(--border);border-radius:13px;padding:14px 16px;display:flex;justify-content:space-between;align-items:center;margin-bottom:9px}
+.qc:hover{border-color:rgba(124,106,255,.3)}
+.qtitle{font-weight:600;font-size:13px}
+.qmeta{font-size:11px;color:var(--muted);margin-top:2px}
+.dc{font-size:10px;font-weight:700;padding:3px 8px;border-radius:20px;margin-top:4px;display:inline-block}
+.dok{background:rgba(0,212,170,.12);color:var(--green)}.dsn{background:rgba(234,179,8,.15);color:#fbbf24}.dov{background:rgba(239,68,68,.15);color:#ff8080}
+.sb{padding:8px 16px;background:linear-gradient(135deg,var(--accent),var(--accent2));border:none;border-radius:9px;color:#fff;font-weight:700;cursor:pointer;font-size:12px;text-decoration:none;transition:all .2s}
+.sb:hover{transform:translateY(-1px)}
+/* scores */
+.sc{background:var(--panel);border:1px solid var(--border);border-radius:13px;padding:13px 16px;display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;cursor:pointer}
+.sc:hover{border-color:rgba(0,212,170,.3)}
+.snum{font-family:'Syne',sans-serif;font-size:19px;font-weight:800}
+.sh{color:var(--green)}.sm{color:#fbbf24}.sl{color:#ff8080}
+/* modal */
+.ov{position:fixed;inset:0;background:rgba(0,0,0,.7);backdrop-filter:blur(4px);z-index:200;display:none;align-items:center;justify-content:center;padding:14px}
+.ov.on{display:flex}
+.modal{background:var(--panel);border:1px solid var(--border);border-radius:16px;max-width:640px;width:100%;max-height:82vh;overflow-y:auto;padding:22px}
+.mtitle{font-family:'Syne',sans-serif;font-size:17px;font-weight:800;margin-bottom:14px}
+.cbtn{float:right;background:rgba(255,255,255,.08);border:none;border-radius:6px;padding:4px 11px;color:var(--text);cursor:pointer;font-size:12px}
+.rq{background:var(--surface);border:1px solid var(--border);border-radius:9px;padding:12px;margin-bottom:9px}
+.rqt{font-weight:600;font-size:12px;margin-bottom:7px}
+.ro{padding:6px 10px;border-radius:6px;font-size:12px;margin-bottom:4px}
+.rok{background:rgba(0,212,170,.14);color:var(--green)}.rwr{background:rgba(239,68,68,.14);color:#ff8080}.rne{background:rgba(255,255,255,.04);color:var(--muted)}
+/* pw */
+.pwc{background:var(--panel);border:1px solid var(--border);border-radius:13px;padding:20px;max-width:360px}
+.fl{display:block;font-size:10px;font-weight:600;letter-spacing:.07em;text-transform:uppercase;color:var(--muted);margin-bottom:5px}
+.fi{width:100%;background:var(--surface);border:1px solid var(--border);border-radius:8px;padding:10px 12px;color:var(--text);font-size:13px;outline:none;font-family:'DM Sans',sans-serif;margin-bottom:12px}
+.fi:focus{border-color:var(--accent)}
+.saveb{padding:10px 22px;background:linear-gradient(135deg,var(--accent),var(--accent2));border:none;border-radius:9px;color:#fff;font-weight:700;cursor:pointer;font-size:13px}
+.pm{padding:8px 12px;border-radius:8px;font-size:12px;margin-top:9px}
+.pok{background:rgba(0,212,170,.12);color:var(--green)}.per{background:rgba(239,68,68,.12);color:#ff8080}
+/* util */
+.toast{position:fixed;top:16px;right:16px;padding:11px 16px;border-radius:9px;color:#fff;font-weight:600;z-index:999;font-size:12px;box-shadow:0 5px 24px rgba(0,0,0,.4);max-width:280px;animation:ti .3s ease}
+@keyframes ti{from{opacity:0;transform:translateX(26px)}to{opacity:1;transform:none}}
+.spin{display:inline-block;width:14px;height:14px;border:2px solid rgba(255,255,255,.12);border-top-color:var(--accent);border-radius:50%;animation:sp .7s linear infinite;vertical-align:middle;margin-right:5px}
+@keyframes sp{to{transform:rotate(360deg)}}
+.empty{color:var(--muted);font-size:13px;padding:12px 0}
+.ann-card{background:linear-gradient(135deg,rgba(251,191,36,.12),rgba(124,106,255,.08));border:1px solid rgba(251,191,36,.25);border-radius:13px;padding:14px 16px;margin-bottom:10px}
+.ann-from{font-size:11px;color:var(--accent);font-weight:700;margin-bottom:6px}
+.ann-msg{font-size:13px;line-height:1.5}
+.ann-time{font-size:10px;color:var(--muted);margin-top:8px}
+.pdf-prev{width:100%;height:min(420px,55vh);border:1px solid var(--border);border-radius:9px;margin-top:10px;background:#fff}
+.pdf-actions{display:flex;gap:8px;margin-top:10px;flex-wrap:wrap}
+.pdf-btn{padding:8px 14px;border-radius:8px;font-size:12px;font-weight:700;text-decoration:none;cursor:pointer;border:none}
+.pdf-open{background:linear-gradient(135deg,var(--accent),var(--accent2));color:#fff}
+.pdf-dl{background:var(--surface);border:1px solid var(--border);color:var(--text)}
+</style>
+</head>
+<body>
+<nav>
+  <div class="brand">EduNova</div>
+  <div class="links">
+    <button class="nb on" onclick="show('home',this)">🏠 Home</button>
+    <button class="nb" onclick="show('videos',this)">🎬 Videos</button>
+    <button class="nb" onclick="show('photos',this)">🖼 Photos</button>
+    <button class="nb" onclick="show('pdfs',this)">📄 PDFs</button>
+    <button class="nb" onclick="show('tests',this)">📝 Tests</button>
+    <button class="nb" onclick="show('scores',this)">🏆 Scores</button>
+    
+    <button class="nb" onclick="show('announce',this)">📣 Announce</button>
+    <button class="nb" onclick="location.href='/chat'">💬 Chat</button>
+    <button class="nb" onclick="location.href='/live_class'">📡 Live</button>
+    <button class="nb" onclick="show('settings',this)">⚙️</button>
+  </div>
+  <div class="nr">
+    <div class="chip"><div class="dot"></div><span>{{ username }}</span></div>
+    <a class="lo" href="/logout">Logout</a>
+  </div>
+</nav>
+
+<!-- HOME -->
+<div class="page on" id="page-home">
+  <div class="st">Welcome back, {{ username }} 👋</div>
+  <div class="pg">
+    <div class="pc"><div class="pv" id="pv-t">—</div><div class="pl">Tests Done</div><div class="bw"><div class="bf" id="pb-t" style="width:0%;background:linear-gradient(90deg,var(--accent),var(--accent2))"></div></div></div>
+    <div class="pc"><div class="pv" id="pv-c">—</div><div class="pl">Content Viewed</div><div class="bw"><div class="bf" id="pb-c" style="width:0%;background:linear-gradient(90deg,var(--green),#00b88a)"></div></div></div>
+    <div class="pc"><div class="pv" id="pv-a">—</div><div class="pl">Avg Score %</div><div class="bw"><div class="bf" id="pb-a" style="width:0%;background:linear-gradient(90deg,#f59e0b,#fbbf24)"></div></div></div>
+    <div class="pc"><div class="pv" id="pv-b">—</div><div class="pl">Bookmarks</div></div>
+  </div>
+  <div class="st" style="font-size:15px">Latest Announcements</div>
+  <div id="home-announce" style="margin-bottom:18px"><span class="spin"></span></div>
+  <div class="st" style="font-size:15px">Pending Tests</div>
+  <div id="home-tests"><span class="spin"></span></div>
+</div>
+
+
+<!-- ANNOUNCEMENTS -->
+<div class="page" id="page-announce">
+  <div class="st">📣 Teacher Announcements</div>
+  <p style="color:var(--muted);font-size:13px;margin:-8px 0 14px">Messages from your teachers appear here and on Home.</p>
+  <div id="announce-list"><span class="spin"></span></div>
+</div>
+<!-- VIDEOS -->
+<div class="page" id="page-videos">
+  <div class="st">🎬 Video Lessons</div>
+  <input class="srch" placeholder="Search videos…" oninput="flt(this,'vl')">
+  <div class="cg" id="vl"></div>
+</div>
+
+<!-- PHOTOS -->
+<div class="page" id="page-photos">
+  <div class="st">🖼 Photo Resources</div>
+  <input class="srch" placeholder="Search photos…" oninput="flt(this,'pl')">
+  <div class="cg" id="pl"></div>
+</div>
+
+<!-- PDFs -->
+<div class="page" id="page-pdfs">
+  <div class="st">📄 PDF Documents</div>
+  <input class="srch" placeholder="Search PDFs…" oninput="flt(this,'dl')">
+  <div class="cg" id="dl"></div>
+</div>
+
+<!-- TESTS -->
+<div class="page" id="page-tests">
+  <div class="st">📝 Available Tests</div>
+  <div id="tests-list"></div>
+</div>
+
+<!-- SCORES -->
+<div class="page" id="page-scores">
+  <div class="st">🏆 My Scores <span style="font-size:11px;color:var(--muted);font-weight:400">(click to review)</span></div>
+  <div id="scores-list"></div>
+</div>
+
+<!-- SAVED -->
+<div class="page" id="page-saved">
+  <div class="st">🔖 Saved Content</div>
+  <div class="cg" id="saved-list"></div>
+</div>
+
+<!-- SETTINGS -->
+<div class="page" id="page-settings">
+  <div class="st">⚙️ Settings</div>
+  <div class="pwc">
+    <div style="font-weight:700;margin-bottom:14px">Change Password</div>
+    <label class="fl">Current Password</label><input class="fi" type="password" id="cpw">
+    <label class="fl">New Password</label><input class="fi" type="password" id="npw">
+    <label class="fl">Confirm</label><input class="fi" type="password" id="cnpw">
+    <button class="saveb" onclick="chpw()">Save</button>
+    <div id="pwm"></div>
+  </div>
+</div>
+
+<!-- REVIEW MODAL -->
+<div class="ov" id="revov" onclick="if(event.target.id==='revov')event.target.classList.remove('on')">
+  <div class="modal">
+    <button class="cbtn" onclick="document.getElementById('revov').classList.remove('on')">✕ Close</button>
+    <div class="mtitle" id="revt">Review</div>
+    <div id="revb"></div>
+  </div>
+</div>
+
+<script>
+let bmIds=new Set();
+function show(n,b){
+  document.querySelectorAll('.page').forEach(p=>p.classList.remove('on'));
+  document.querySelectorAll('.nb').forEach(x=>x.classList.remove('on'));
+  document.getElementById('page-'+n).classList.add('on');
+  if(b)b.classList.add('on');
+  if(n==='videos') loadCont('video','vl');
+  if(n==='photos') loadCont('photo','pl');
+  if(n==='pdfs') loadCont('pdf','dl');
+  if(n==='announce') loadAnnouncements();
+  if(n==='saved') loadSaved();
+}
+function esc(s){return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/"/g,'&quot;');}
+window.addEventListener('DOMContentLoaded',async()=>{
+  await loadBmIds();
+  loadProg();
+  loadAnnouncements(true);
+  loadCont('video','vl');
+  loadCont('photo','pl');
+  loadCont('pdf','dl');
+  loadTests('tests-list');
+  loadTests('home-tests',true);
+  loadScores();
+  setupNotif();
+});
+async function loadProg(){
+  const d=await fetch('/student/progress').then(r=>r.json()).catch(()=>({}));
+  document.getElementById('pv-t').textContent=(d.done_tests||0)+'/'+(d.total_tests||0);
+  document.getElementById('pv-c').textContent=(d.viewed_content||0)+'/'+(d.total_content||0);
+  document.getElementById('pv-a').textContent=(d.avg_score||0)+'%';
+  document.getElementById('pv-b').textContent=d.bookmarks||0;
+  const tp=d.total_tests?d.done_tests/d.total_tests*100:0;
+  const cp=d.total_content?d.viewed_content/d.total_content*100:0;
+  setTimeout(()=>{
+    document.getElementById('pb-t').style.width=tp+'%';
+    document.getElementById('pb-c').style.width=cp+'%';
+    document.getElementById('pb-a').style.width=(d.avg_score||0)+'%';
+  },120);
+}
+async function loadBmIds(){
+  const ids=await fetch('/get_bookmark_ids').then(r=>r.json()).catch(()=>[]);
+  bmIds=new Set(ids);
+}
+async function loadCont(type,lid){
+  const el=document.getElementById(lid); el.innerHTML='<span class="spin"></span>';
+  let data=[];
+  try{
+    const res=await fetch('/get_content/'+type);
+    const json=await res.json();
+    data=Array.isArray(json)?json:[];
+  }catch(e){data=[];}
+  el.innerHTML='';
+  if(!data.length){el.innerHTML='<p class="empty">No '+type+'s assigned yet. Ask your teacher to upload and assign content.</p>';return;}
+  data.forEach(item=>{
+    const div=document.createElement('div');
+    div.className='cc'; div.dataset.q=(item.title||'').toLowerCase();
+    const bm=bmIds.has(item.id);
+    const t=esc(item.title), u=esc(item.uploaded_by||'Unknown');
+    let media='';
+    const viewUrl = `/view_content/${item.id}`;
+    const dlUrl   = `/download_content/${item.id}`;
+    if(type==='video') media=`<video controls style="width:100%;border-radius:7px;margin-top:8px;background:#000" onplay="tv(${item.id})"><source src="${viewUrl}" type="video/mp4"></video>`;
+    else if(type==='photo') media=`<a href="${viewUrl}" target="_blank" onclick="tv(${item.id})"><img src="${viewUrl}" style="width:100%;height:145px;object-fit:cover;border-radius:7px;margin-top:8px" alt="${t}" loading="lazy"></a>`;
+    else media=`<div style="display:flex;align-items:center;gap:8px;margin-top:9px"><span style="font-size:22px">📄</span><a href="${viewUrl}" target="_blank" onclick="tv(${item.id})" style="color:var(--accent);font-weight:600;font-size:13px;text-decoration:none">Open: ${t}</a>
+      <a class="pdf-btn pdf-dl" href="${dlUrl}" onclick="tv(${item.id})" style="margin-left:8px;color:var(--text);font-size:12px">Download</a></div>
+      <iframe class="pdf-prev" src="${viewUrl}" title="${t}" style="margin-top:10px"></iframe>`;
+    div.innerHTML=`<div class="ct"><div><div class="ctitle">${t}</div><div class="tbadge">👤 ${u}</div><div class="cmeta">📅 ${esc(item.time_ago)} &nbsp;·&nbsp; 👁 ${item.view_count||0} views</div></div><button class="bmb${bm?' on':''}" onclick="togBm(${item.id},this)">${bm?'🔖':'🏷'}</button></div>${media}`;
+    el.appendChild(div);
+  });
+}
+function flt(inp,lid){
+  const q=inp.value.toLowerCase();
+  document.querySelectorAll('#'+lid+' .cc').forEach(c=>c.style.display=c.dataset.q.includes(q)?'':'none');
+}
+async function tv(cid){await fetch('/track_view/'+cid,{method:'POST'});}
+async function togBm(cid,btn){
+  const on=btn.classList.contains('on');
+  await fetch('/bookmark/'+cid,{method:on?'DELETE':'POST'});
+  btn.classList.toggle('on'); btn.textContent=on?'🏷':'🔖';
+  on?bmIds.delete(cid):bmIds.add(cid);
+  document.getElementById('pv-b').textContent=bmIds.size;
+}
+async function loadSaved(){
+  const el=document.getElementById('saved-list'); el.innerHTML='<span class="spin"></span>';
+  const data=await fetch('/get_bookmarks').then(r=>r.json()).catch(()=>[]);
+  el.innerHTML='';
+  if(!data.length){el.innerHTML='<p class="empty">No saved content yet.</p>';return;}
+  data.forEach(item=>{
+    const div=document.createElement('div'); div.className='cc';
+    div.innerHTML=`<div class="ct"><div><div class="ctitle">${item.title}</div><div class="tbadge">👤 ${item.uploaded_by||'Unknown'}</div><div class="cmeta" style="margin-top:3px"><span style="background:rgba(255,255,255,.06);padding:1px 6px;border-radius:6px;font-size:10px;text-transform:capitalize">${item.file_type}</span></div></div><button class="bmb on" onclick="togBm(${item.id},this)">🔖</button></div><div class="cmeta" style="margin-top:6px">📅 ${item.upload_date}</div>`;
+    el.appendChild(div);
+  });
+}
+async function loadTests(lid,compact=false){
+  const el=document.getElementById(lid); if(!el) return;
+  el.innerHTML='<span class="spin"></span>';
+  const data=await fetch('/get_tests').then(r=>r.json()).catch(()=>[]);
+  el.innerHTML='';
+  if(!data.length){el.innerHTML='<p class="empty">'+(compact?'No pending tests 🎉':'No tests available.')+'</p>';return;}
+  (compact?data.slice(0,3):data).forEach(t=>{
+    const div=document.createElement('div'); div.className='qc';
+    let due='';
+    if(t.due_date){const df=(new Date(t.due_date)-new Date())/3.6e6;const c=df<0?'dov':df<24?'dsn':'dok';const l=df<0?'⚠ Overdue':df<24?`⏰ ${Math.ceil(df)}h left`:`📅 ${t.due_date}`;due=`<div class="dc ${c}">${l}</div>`;}
+    div.innerHTML=`<div><div class="qtitle">${t.title}</div><div class="qmeta">by ${t.created_by||'Teacher'}</div>${due}</div><a href="/get_test_details/${t.id}" class="sb">Start →</a>`;
+    el.appendChild(div);
+  });
+}
+async function loadScores(){
+  const el=document.getElementById('scores-list'); el.innerHTML='<span class="spin"></span>';
+  const data=await fetch('/get_scores').then(r=>r.json()).catch(()=>[]);
+  el.innerHTML='';
+  if(!data.length){el.innerHTML='<p class="empty">No completed tests yet.</p>';return;}
+  data.forEach(s=>{
+    const div=document.createElement('div'); div.className='sc';
+    const c=s.score>=80?'sh':s.score>=50?'sm':'sl';
+    div.innerHTML=`<div><div style="font-weight:600;font-size:13px">${s.test_title}</div><div style="font-size:11px;color:var(--muted)">by ${s.created_by||'Teacher'} · ${s.submission_date}</div></div><div class="snum ${c}">${s.score.toFixed(1)}%</div>`;
+    div.onclick=()=>openRev(s.test_id,s.test_title);
+    el.appendChild(div);
+  });
+}
+async function openRev(tid,title){
+  document.getElementById('revt').textContent='Review: '+title;
+  document.getElementById('revb').innerHTML='<span class="spin"></span> Loading…';
+  document.getElementById('revov').classList.add('on');
+  const d=await fetch('/get_score_review/'+tid).then(r=>r.json()).catch(()=>({error:1}));
+  if(d.error){document.getElementById('revb').innerHTML='<p>Not available.</p>';return;}
+  let h=`<p style="margin-bottom:12px;color:var(--muted)">Score: <strong style="color:var(--green)">${d.score.toFixed(1)}%</strong></p>`;
+  d.review.forEach((q,i)=>{
+    h+=`<div class="rq"><div class="rqt">Q${i+1}. ${q.question}</div>`;
+    q.options.forEach(o=>{
+      const c=o===q.correct_answer?'rok':o===q.your_answer?'rwr':'rne';
+      const ic=o===q.correct_answer?'✓ ':o===q.your_answer?'✗ ':' ';
+      h+=`<div class="ro ${c}">${ic}${o}</div>`;
+    });
+    h+='</div>';
+  });
+  document.getElementById('revb').innerHTML=h;
+}
+async function chpw(){
+  const cur=document.getElementById('cpw').value, np=document.getElementById('npw').value, cn=document.getElementById('cnpw').value;
+  const m=document.getElementById('pwm');
+  const r=await fetch('/change_password',{method:'POST',headers:{'Content-Type':'application/x-www-form-urlencoded'},body:`current_password=${encodeURIComponent(cur)}&new_password=${encodeURIComponent(np)}&confirm_password=${encodeURIComponent(cn)}`});
+  const d=await r.json();
+  m.className='pm '+(d.error?'per':'pok'); m.textContent=d.error||d.message;
+}
+
+function renderAnnItem(a){
+  const cls=a.target_class?` <span style="opacity:.7">(${a.target_class})</span>`:'';
+  return `<div class="ann-card"><div class="ann-from">📣 ${a.teacher_username}${cls}</div><div class="ann-msg">${a.message}</div><div class="ann-time">${a.created_at||''}</div></div>`;
+}
+async function loadAnnouncements(homeOnly){
+  const list=await fetch('/student/announcements').then(r=>r.json()).catch(()=>[]);
+  const full=document.getElementById('announce-list');
+  const home=document.getElementById('home-announce');
+  if(!Array.isArray(list)||!list.length){
+    const empty='<p class="empty">No announcements yet.</p>';
+    if(full&&!homeOnly) full.innerHTML=empty;
+    if(home) home.innerHTML=empty;
+    return;
+  }
+  const html=list.map(renderAnnItem).join('');
+  if(full&&!homeOnly) full.innerHTML=html;
+  if(home) home.innerHTML=list.slice(0,3).map(renderAnnItem).join('');
+}
+function setupNotif(){
+  if(typeof io==='undefined') return;
+  const s=io({transports:['websocket','polling']});
+  const toast=(msg,bg)=>{const e=document.createElement('div');e.className='toast';e.style.background=bg;e.innerHTML=msg;document.body.appendChild(e);setTimeout(()=>e.remove(),6000);};
+  s.on('new_content',d=>toast(`📚 New: <strong>${d.title}</strong>`,'rgba(124,106,255,.95)'));
+  s.on('session_started',d=>toast(`📡 <a href="/live_class" style="color:#fff">${d.message}</a>`,'rgba(0,160,90,.95)'));
+  s.on('teacher_broadcast',d=>{
+    toast(`📣 <strong>${d.from}:</strong> ${d.message}`,'rgba(251,191,36,.95)');
+    loadAnnouncements(true);
+    const p=document.getElementById('page-announce');
+    if(p&&p.classList.contains('on')) loadAnnouncements();
+  });
+}
+</script>
+</body>
+</html>

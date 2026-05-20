@@ -1,0 +1,79 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Live Class — EduNova</title>
+    <link href="https://fonts.googleapis.com/css2?family=Syne:wght@700;800&family=DM+Sans:wght@400;500&display=swap" rel="stylesheet">
+    <script src="https://cdn.socket.io/4.7.5/socket.io.min.js"></script>
+    <style>
+        *,*::before,*::after{box-sizing:border-box;margin:0;padding:0;}
+        :root{--bg:#05050f;--panel:#0e0e24;--surface:rgba(255,255,255,0.04);--border:rgba(255,255,255,0.07);--accent:#00d4aa;--text:#eeeeff;--muted:#7070a0;}
+        body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--text);height:100vh;display:flex;flex-direction:column;overflow:hidden;}
+        header{background:var(--panel);border-bottom:1px solid var(--border);padding:14px 24px;display:flex;align-items:center;justify-content:space-between;flex-shrink:0;}
+        .header-left{display:flex;align-items:center;gap:14px;}
+        .live-badge{display:flex;align-items:center;gap:6px;padding:6px 14px;background:rgba(239,68,68,0.15);border:1px solid rgba(239,68,68,0.3);border-radius:20px;font-size:12px;font-weight:700;color:#ff8080;}
+        .live-dot{width:8px;height:8px;border-radius:50%;background:#ef4444;animation:livePulse 1s ease-in-out infinite;}
+        @keyframes livePulse{0%,100%{opacity:1;}50%{opacity:0.3;}}
+        .header-title{font-family:'Syne',sans-serif;font-size:18px;font-weight:700;}
+        .header-meta{font-size:13px;color:var(--muted);}
+        .back-btn{padding:9px 18px;background:rgba(255,255,255,0.06);border:1px solid var(--border);border-radius:10px;color:var(--text);font-size:13px;font-weight:600;text-decoration:none;}
+        .stage{flex:1;display:flex;gap:16px;padding:20px;min-height:0;}
+        .remote-area{flex:1;background:var(--panel);border:1px solid var(--border);border-radius:20px;display:flex;flex-direction:column;align-items:center;justify-content:center;overflow:hidden;position:relative;}
+        .remote-label{position:absolute;top:16px;left:16px;font-size:13px;font-weight:600;background:rgba(0,0,0,0.5);padding:6px 12px;border-radius:8px;}
+        .local-area{width:280px;display:flex;flex-direction:column;gap:12px;flex-shrink:0;}
+        .local-video-box{background:var(--panel);border:1px solid var(--border);border-radius:16px;overflow:hidden;position:relative;flex:1;display:flex;align-items:center;justify-content:center;}
+        .local-label{position:absolute;top:10px;left:10px;font-size:11px;font-weight:700;text-transform:uppercase;background:rgba(0,0,0,0.5);padding:4px 10px;border-radius:6px;color:var(--muted);}
+        video{width:100%;height:auto;transform:scaleX(-1);display:block;background:#000;}
+        .remote-area video{height:100%;width:100%;object-fit:contain;}
+        .controls{background:var(--panel);border:1px solid var(--border);border-radius:14px;padding:14px;display:flex;gap:8px;justify-content:center;}
+        .ctrl-btn{padding:10px 16px;border:1px solid var(--border);border-radius:10px;background:var(--surface);color:var(--text);font-size:12px;font-weight:700;cursor:pointer;display:flex;align-items:center;gap:6px;}
+        .ctrl-btn.muted,.ctrl-btn.cam-off{background:rgba(239,68,68,0.15);border-color:rgba(239,68,68,0.3);color:#ff8080;}
+        .waiting-screen{display:flex;flex-direction:column;align-items:center;gap:16px;color:var(--muted);}
+        .waiting-screen .spinner{width:40px;height:40px;border:3px solid rgba(255,255,255,0.08);border-top-color:var(--accent);border-radius:50%;animation:spin 1s linear infinite;}
+        @keyframes spin{to{transform:rotate(360deg);}}
+    </style>
+</head>
+<body>
+    <header>
+        <div class="header-left">
+            <div class="live-badge"><div class="live-dot"></div> LIVE</div>
+            <div><div class="header-title">Live Class Session</div><div class="header-meta">{{ username }} · {{ role }}</div></div>
+        </div>
+        <a href="/{{ role }}" class="back-btn">← Back to Dashboard</a>
+    </header>
+    <div class="stage">
+        <div class="remote-area">
+            <div class="remote-label" id="remote-label">Waiting for connection…</div>
+            <div class="waiting-screen" id="waiting-screen"><div class="spinner"></div><p>Waiting for the other participant…</p></div>
+            <video id="remote-video" autoplay playsinline style="display:none"></video>
+        </div>
+        <div class="local-area">
+            <div class="local-video-box">
+                <div class="local-label">You</div>
+                <video id="local-video" muted autoplay playsinline></video>
+            </div>
+            <div class="controls">
+                <button class="ctrl-btn" id="toggle-mic">🎙 Mute</button>
+                <button class="ctrl-btn" id="toggle-cam">📷 Cam Off</button>
+            </div>
+        </div>
+    </div>
+    <script>
+    const socket=io(),localVideo=document.getElementById('local-video'),remoteVideo=document.getElementById('remote-video'),remoteLabel=document.getElementById('remote-label'),waitingScreen=document.getElementById('waiting-screen');
+    const role="{{ role }}",username="{{ username }}";let localStream,peerConnections={};
+    const servers={iceServers:[{urls:'stun:stun.l.google.com:19302'}]};
+    async function startMedia(){try{localStream=await navigator.mediaDevices.getUserMedia({video:true,audio:true});localVideo.srcObject=localStream;}catch(e){alert('Camera/mic denied.');}}
+    function createPC(sid){const pc=new RTCPeerConnection(servers);localStream.getTracks().forEach(t=>pc.addTrack(t,localStream));pc.onicecandidate=e=>{if(e.candidate)socket.emit('ice_candidate',{target_sid:sid,candidate:e.candidate});};pc.ontrack=e=>{remoteVideo.srcObject=e.streams[0];remoteVideo.style.display='block';waitingScreen.style.display='none';};peerConnections[sid]=pc;return pc;}
+    socket.on('connect',async()=>{await startMedia();socket.emit('join_room',{username});if(role==='teacher')socket.emit('teacher_live',{username});});
+    socket.on('user_joined',async({username:u,sid})=>{remoteLabel.textContent=`${u}'s Video`;if(role==='teacher'&&localStream){const pc=createPC(sid);const offer=await pc.createOffer();await pc.setLocalDescription(offer);socket.emit('offer',{target_sid:sid,offer});}});
+    socket.on('offer_received',async({offer,initiator_sid})=>{if(!localStream)return;remoteLabel.textContent="Teacher's Video";const pc=createPC(initiator_sid);await pc.setRemoteDescription(new RTCSessionDescription(offer));const answer=await pc.createAnswer();await pc.setLocalDescription(answer);socket.emit('answer',{target_sid:initiator_sid,answer});});
+    socket.on('answer_received',async({answer,responder_sid})=>{const pc=peerConnections[responder_sid];if(pc)await pc.setRemoteDescription(new RTCSessionDescription(answer));});
+    socket.on('ice_candidate_received',({candidate,sender_sid})=>{const pc=peerConnections[sender_sid];if(pc&&candidate)pc.addIceCandidate(new RTCIceCandidate(candidate));});
+    socket.on('user_left',({sid})=>{if(peerConnections[sid]){peerConnections[sid].close();delete peerConnections[sid];}remoteVideo.srcObject=null;remoteVideo.style.display='none';waitingScreen.style.display='flex';remoteLabel.textContent='Waiting…';});
+    const micBtn=document.getElementById('toggle-mic');
+    micBtn.addEventListener('click',()=>{if(!localStream)return;const t=localStream.getAudioTracks()[0];t.enabled=!t.enabled;micBtn.className=`ctrl-btn${!t.enabled?' muted':''}`;micBtn.textContent=t.enabled?'🎙 Mute':'🔇 Unmute';});
+    const camBtn=document.getElementById('toggle-cam');
+    camBtn.addEventListener('click',()=>{if(!localStream)return;const t=localStream.getVideoTracks()[0];t.enabled=!t.enabled;camBtn.className=`ctrl-btn${!t.enabled?' cam-off':''}`;camBtn.textContent=t.enabled?'📷 Cam Off':'🚫 Cam On';});
+    </script>
+</body>
+</html>

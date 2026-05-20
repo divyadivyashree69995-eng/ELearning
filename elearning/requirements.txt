@@ -1,0 +1,10 @@
+Flask>=2.3.0
+Flask-SocketIO>=5.3.0
+werkzeug>=2.3.0
+mysql-connector-python>=8.0.0
+pandas
+scikit-learn
+numpy
+PyPDF2
+python-engineio>=4.3.0
+python-socketio>=5.7.0

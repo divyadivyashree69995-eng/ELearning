@@ -1,0 +1,75 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>EduNova — Login</title>
+    <link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;600;700;800&family=DM+Sans:wght@300;400;500&display=swap" rel="stylesheet">
+    <style>
+        *, *::before, *::after { box-sizing:border-box;margin:0;padding:0; }
+        :root { --bg:#05050f;--surface:rgba(255,255,255,0.04);--border:rgba(255,255,255,0.08);--accent:#7c6aff;--accent2:#e040c8;--text:#f0eeff;--muted:#8a8aaa; }
+        body { font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--text);min-height:100vh;display:flex;align-items:center;justify-content:center;overflow:hidden; }
+        .bg-grid { position:fixed;inset:0;z-index:0;background-image:linear-gradient(rgba(124,106,255,0.06) 1px,transparent 1px),linear-gradient(90deg,rgba(124,106,255,0.06) 1px,transparent 1px);background-size:60px 60px;animation:gridSlide 20s linear infinite; }
+        @keyframes gridSlide { 0%{transform:translate(0,0);}100%{transform:translate(60px,60px);} }
+        .orb { position:fixed;border-radius:50%;filter:blur(80px);z-index:0;pointer-events:none; }
+        .orb-1 { width:400px;height:400px;background:radial-gradient(circle,rgba(124,106,255,0.25),transparent 70%);top:-100px;left:-100px;animation:f1 8s ease-in-out infinite; }
+        .orb-2 { width:350px;height:350px;background:radial-gradient(circle,rgba(224,64,200,0.2),transparent 70%);bottom:-80px;right:-80px;animation:f2 10s ease-in-out infinite; }
+        .orb-3 { width:200px;height:200px;background:radial-gradient(circle,rgba(64,180,255,0.15),transparent 70%);top:50%;left:50%;transform:translate(-50%,-50%);animation:f3 6s ease-in-out infinite; }
+        @keyframes f1{0%,100%{transform:translate(0,0);}50%{transform:translate(30px,30px);}}
+        @keyframes f2{0%,100%{transform:translate(0,0);}50%{transform:translate(-25px,-25px);}}
+        @keyframes f3{0%,100%{transform:translate(-50%,-50%) scale(1);}50%{transform:translate(-50%,-50%) scale(1.3);}}
+        .card { position:relative;z-index:10;width:100%;max-width:420px;background:var(--surface);border:1px solid var(--border);border-radius:24px;padding:48px 40px;backdrop-filter:blur(24px);animation:cardIn 0.7s cubic-bezier(0.34,1.56,0.64,1) forwards;box-shadow:0 0 0 1px rgba(124,106,255,0.1),0 40px 80px rgba(0,0,0,0.6); }
+        @keyframes cardIn{from{opacity:0;transform:translateY(40px) scale(0.95);}to{opacity:1;transform:translateY(0) scale(1);}}
+        .logo-area { text-align:center;margin-bottom:36px; }
+        .logo-icon { display:inline-flex;align-items:center;justify-content:center;width:60px;height:60px;background:linear-gradient(135deg,var(--accent),var(--accent2));border-radius:18px;margin-bottom:16px;animation:pulse 3s ease-in-out infinite;box-shadow:0 0 30px rgba(124,106,255,0.4); }
+        @keyframes pulse{0%,100%{box-shadow:0 0 30px rgba(124,106,255,0.4);}50%{box-shadow:0 0 50px rgba(224,64,200,0.5);}}
+        .logo-icon svg { width:30px;height:30px;fill:white; }
+        h1 { font-family:'Syne',sans-serif;font-size:28px;font-weight:800;background:linear-gradient(90deg,#fff 30%,var(--accent));-webkit-background-clip:text;-webkit-text-fill-color:transparent;letter-spacing:-0.5px; }
+        .subtitle { color:var(--muted);font-size:14px;margin-top:6px; }
+        .error-banner { background:rgba(255,80,80,0.1);border:1px solid rgba(255,80,80,0.2);color:#ff8080;padding:12px 16px;border-radius:12px;font-size:13px;margin-bottom:20px;animation:shake 0.4s ease; }
+        @keyframes shake{0%,100%{transform:translateX(0);}25%{transform:translateX(-6px);}75%{transform:translateX(6px);}}
+        .field { margin-bottom:20px; }
+        label { display:block;font-size:12px;font-weight:600;letter-spacing:0.08em;text-transform:uppercase;color:var(--muted);margin-bottom:8px; }
+        input[type="text"],input[type="password"] { width:100%;background:rgba(255,255,255,0.05);border:1px solid var(--border);border-radius:12px;padding:14px 16px;color:var(--text);font-family:'DM Sans',sans-serif;font-size:15px;transition:all 0.2s;outline:none; }
+        input:focus { border-color:var(--accent);background:rgba(124,106,255,0.08);box-shadow:0 0 0 3px rgba(124,106,255,0.15); }
+        input::placeholder { color:rgba(255,255,255,0.2); }
+        .btn { width:100%;padding:15px;background:linear-gradient(135deg,var(--accent),var(--accent2));border:none;border-radius:14px;color:white;font-family:'Syne',sans-serif;font-size:16px;font-weight:700;cursor:pointer;transition:all 0.2s;margin-top:8px;position:relative;overflow:hidden; }
+        .btn:hover { transform:translateY(-2px);box-shadow:0 12px 30px rgba(124,106,255,0.45); }
+        .links-row { text-align:center;margin-top:20px;font-size:14px;color:var(--muted);display:flex;flex-direction:column;gap:8px; }
+        .links-row a { color:var(--accent);text-decoration:none;font-weight:600; }
+        .links-row a:hover { color:#a08bff; }
+        .particle { position:fixed;border-radius:50%;pointer-events:none;z-index:1;animation:particleFloat linear infinite; }
+        @keyframes particleFloat{0%{transform:translateY(100vh) rotate(0deg);opacity:0;}10%{opacity:1;}90%{opacity:1;}100%{transform:translateY(-100px) rotate(720deg);opacity:0;}}
+    </style>
+</head>
+<body>
+    <div class="bg-grid"></div>
+    <div class="orb orb-1"></div><div class="orb orb-2"></div><div class="orb orb-3"></div>
+    <div class="card">
+        <div class="logo-area">
+            <div class="logo-icon"><svg viewBox="0 0 24 24"><path d="M12 3L1 9l11 6 9-4.91V17h2V9L12 3zM5 13.18v4L12 21l7-3.82v-4L12 17l-7-3.82z"/></svg></div>
+            <h1>EduNova</h1>
+            <p class="subtitle">Sign in to continue your journey</p>
+        </div>
+        {% if message %}<div class="error-banner">⚠ {{ message }}</div>{% endif %}
+        <form action="/login" method="POST">
+            <div class="field">
+                <label for="username">Username</label>
+                <input type="text" name="username" id="username" placeholder="Enter your username" autocomplete="username" required>
+            </div>
+            <div class="field">
+                <label for="password">Password</label>
+                <input type="password" name="password" id="password" placeholder="••••••••" autocomplete="current-password" required>
+            </div>
+            <button type="submit" class="btn">Enter Platform →</button>
+        </form>
+        <div class="links-row">
+            <span>New student? <a href="/register">Create Account</a></span>
+            <span>Teacher? <a href="/register_teacher">Register as Teacher</a></span>
+        </div>
+    </div>
+    <script>
+    for(let i=0;i<12;i++){const p=document.createElement('div');p.className='particle';const s=Math.random()*4+2;p.style.cssText=`width:${s}px;height:${s}px;left:${Math.random()*100}%;background:${Math.random()>0.5?'#7c6aff':'#e040c8'};opacity:${Math.random()*0.5+0.1};animation-duration:${Math.random()*15+10}s;animation-delay:${Math.random()*10}s;`;document.body.appendChild(p);}
+    </script>
+</body>
+</html>

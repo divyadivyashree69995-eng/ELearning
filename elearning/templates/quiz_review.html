@@ -1,0 +1,53 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Quiz Review — EduNova</title>
+    <link href="https://fonts.googleapis.com/css2?family=Syne:wght@700;800&family=DM+Sans:wght@300;400;500&display=swap" rel="stylesheet">
+    <style>
+        *,*::before,*::after{box-sizing:border-box;margin:0;padding:0;}
+        :root{--bg:#08081a;--panel:#0e0e24;--surface:rgba(255,255,255,0.04);--border:rgba(255,255,255,0.07);--accent:#7c6aff;--text:#eeeeff;--muted:#7070a0;}
+        body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--text);min-height:100vh;padding:40px 16px;}
+        .container{max-width:760px;margin:0 auto;}
+        .header{background:linear-gradient(135deg,rgba(0,212,170,0.12),rgba(124,106,255,0.08));border:1px solid rgba(0,212,170,0.2);border-radius:20px;padding:28px 32px;margin-bottom:28px;}
+        .test-title{font-family:'Syne',sans-serif;font-size:24px;font-weight:800;margin-bottom:8px;}
+        .score-big{font-family:'Syne',sans-serif;font-size:48px;font-weight:800;color:#00d4aa;}
+        .score-label{color:var(--muted);font-size:14px;}
+        .q-block{background:var(--panel);border-radius:16px;padding:20px;margin-bottom:12px;border-left:4px solid var(--border);}
+        .q-block.correct{border-left-color:#00d4aa;}
+        .q-block.wrong{border-left-color:#ef4444;}
+        .q-text{font-weight:600;font-size:15px;margin-bottom:12px;}
+        .opt{padding:8px 14px;border-radius:8px;font-size:13px;margin-bottom:6px;}
+        .opt.correct-ans{background:rgba(0,212,170,0.12);color:#00d4aa;border:1px solid rgba(0,212,170,0.2);}
+        .opt.your-wrong{background:rgba(239,68,68,0.12);color:#ff8080;border:1px solid rgba(239,68,68,0.2);}
+        .opt.neutral{background:var(--surface);color:var(--muted);}
+        .back-btn{display:inline-block;padding:12px 28px;background:linear-gradient(135deg,var(--accent),#9c84ff);border-radius:14px;color:white;font-weight:700;text-decoration:none;font-family:'Syne',sans-serif;margin-top:20px;}
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <div class="test-title">{{ test_title }}</div>
+            <div class="score-big">{{ '%.1f'|format(score) }}%</div>
+            <div class="score-label">{{ correct_count }} of {{ total }} correct</div>
+        </div>
+        {% for item in review %}
+        <div class="q-block {% if item.is_correct %}correct{% else %}wrong{% endif %}">
+            <div class="q-text">Q{{ loop.index }}. {{ item.question }}</div>
+            {% for opt in item.options %}
+                {% if opt == item.correct_answer and opt == item.your_answer %}
+                    <div class="opt correct-ans">✓ {{ opt }} <span style="opacity:0.7">(your answer — correct)</span></div>
+                {% elif opt == item.correct_answer %}
+                    <div class="opt correct-ans">✓ {{ opt }} <span style="opacity:0.7">(correct answer)</span></div>
+                {% elif opt == item.your_answer %}
+                    <div class="opt your-wrong">✗ {{ opt }} <span style="opacity:0.7">(your answer)</span></div>
+                {% else %}
+                    <div class="opt neutral">{{ opt }}</div>
+                {% endif %}
+            {% endfor %}
+        </div>
+        {% endfor %}
+        <a href="/student" class="back-btn">← Back to Dashboard</a>
+    </div>
+</body>
+</html>
