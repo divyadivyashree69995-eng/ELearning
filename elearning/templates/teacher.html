@@ -38,6 +38,7 @@
 
         .stats-row { display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:16px;margin-bottom:28px; }
         .stat-card { background:var(--panel);border:1px solid var(--border);border-radius:16px;padding:20px;text-align:center; }
+        #students-stat-card { cursor:pointer !important; }
         .stat-val { font-family:'Syne',sans-serif;font-size:30px;font-weight:800;margin-bottom:4px; }
         .stat-lbl { font-size:12px;color:var(--muted);text-transform:uppercase;letter-spacing:0.08em; }
 
@@ -113,6 +114,16 @@
         .pw-err { background:rgba(239,68,68,0.1);color:#ff8080; }
         .search-input { width:100%;background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:10px 14px;color:var(--text);font-size:13px;outline:none;margin-bottom:8px;font-family:'DM Sans',sans-serif; }
         .search-input:focus { border-color:var(--accent); }
+        .students-grid { display:flex;flex-wrap:wrap;gap:10px;margin-top:4px; }
+        .student-pill { display:flex;align-items:center;gap:10px;background:rgba(255,255,255,0.05);border:1px solid rgba(255,255,255,0.12);border-radius:50px;padding:10px 18px 10px 10px;cursor:default;transition:all 0.2s;animation:pillIn 0.3s ease backwards; }
+        .student-pill:hover { border-color:rgba(0,212,170,0.6);background:rgba(0,212,170,0.1);transform:translateY(-2px);box-shadow:0 4px 16px rgba(0,212,170,0.15); }
+        @keyframes pillIn{from{opacity:0;transform:scale(0.85) translateY(6px)}to{opacity:1;transform:none}}
+        .student-avatar { width:36px;height:36px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-family:'Syne',sans-serif;font-size:13px;font-weight:800;color:white;flex-shrink:0; }
+        .student-info { line-height:1.3; }
+        .student-name { font-size:14px;font-weight:600;color:var(--text); }
+        .student-class { font-size:11px;color:var(--muted); }
+        .students-search { width:100%;background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:9px 14px;color:var(--text);font-size:13px;outline:none;margin-bottom:14px;font-family:'DM Sans',sans-serif; }
+        .students-search:focus { border-color:var(--accent); }
     </style>
 </head>
 <body>
@@ -144,6 +155,24 @@
         <div class="stat-card"><div class="stat-val" id="s-views">—</div><div class="stat-lbl">Total Views</div></div>
         <div class="stat-card"><div class="stat-val" id="s-quizzes">—</div><div class="stat-lbl">Quizzes</div></div>
         <div class="stat-card"><div class="stat-val" id="s-subs">—</div><div class="stat-lbl">Submissions</div></div>
+        <div class="stat-card" id="students-stat-card" style="border-color:rgba(0,212,170,0.25);background:rgba(0,212,170,0.04);cursor:pointer!important;transition:all 0.2s;user-select:none" title="Click to view your students below" onclick="scrollToStudents()" onmouseenter="this.style.transform='translateY(-3px)';this.style.boxShadow='0 6px 20px rgba(0,212,170,0.25)'" onmouseleave="this.style.transform='';this.style.boxShadow=''">
+            <div class="stat-val" id="s-students" style="color:var(--accent)">—</div>
+            <div class="stat-lbl">Students ↓</div>
+        </div>
+    </div>
+    <!-- STUDENTS LIST -->
+    <div class="card" id="students-panel" style="margin-bottom:20px;border-color:rgba(0,212,170,0.18);background:linear-gradient(135deg,rgba(0,212,170,0.04),rgba(124,106,255,0.03));transition:box-shadow 0.4s">
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:14px;flex-wrap:wrap;gap:10px">
+            <div style="display:flex;align-items:center;gap:10px">
+                <div style="width:38px;height:38px;border-radius:12px;background:linear-gradient(135deg,var(--accent),var(--accent2));display:flex;align-items:center;justify-content:center;font-size:18px">👥</div>
+                <div>
+                    <div style="font-family:'Syne',sans-serif;font-size:18px;font-weight:800;line-height:1">My Students</div>
+                    <div style="font-size:12px;color:var(--muted);margin-top:2px" id="students-count-badge">Loading…</div>
+                </div>
+            </div>
+            <input class="students-search" id="students-search" style="width:220px;margin:0" placeholder="🔍 Search…" oninput="filterHomeStudents(this.value)">
+        </div>
+        <div class="students-grid" id="home-students-grid"><div class="spinner"></div></div>
     </div>
     <div class="card">
         <div class="analytic-title">Quiz Performance Overview</div>
@@ -373,16 +402,32 @@ window.addEventListener('DOMContentLoaded', () => {
 });
 
 // ── HOME STATS ────────────────────────────────────────────────────────────
+let _homeStudents = [];
+
 async function loadHomeStats() {
-    const [cr, qr] = await Promise.all([fetch('/teacher/my_content'), fetch('/teacher/quiz_analytics')]);
-    const content = await cr.json();
-    const quizzes = await qr.json();
-    const totalViews = content.reduce((s, c) => s + (c.view_count||0), 0);
-    const totalSubs  = quizzes.reduce((s, q) => s + (q.submissions||0), 0);
-    document.getElementById('s-content').textContent = content.length;
-    document.getElementById('s-views').textContent   = totalViews;
-    document.getElementById('s-quizzes').textContent = quizzes.length;
-    document.getElementById('s-subs').textContent    = totalSubs;
+    try {
+        const [cr, qr, sr] = await Promise.all([
+            fetch('/teacher/my_content'),
+            fetch('/teacher/quiz_analytics'),
+            fetch('/teacher/get_students')
+        ]);
+        const contentRaw  = await cr.json();
+        const quizzesRaw  = await qr.json();
+        const studentsRaw = await sr.json();
+
+        // Guard against error objects returned by the API
+        const content = Array.isArray(contentRaw)  ? contentRaw  : [];
+        const quizzes = Array.isArray(quizzesRaw)  ? quizzesRaw  : [];
+        _homeStudents  = Array.isArray(studentsRaw) ? studentsRaw : [];
+
+        const totalViews = content.reduce((s, c) => s + (c.view_count||0), 0);
+        const totalSubs  = quizzes.reduce((s, q) => s + (q.submissions||0), 0);
+        document.getElementById('s-content').textContent  = content.length;
+        document.getElementById('s-views').textContent    = totalViews;
+        document.getElementById('s-quizzes').textContent  = quizzes.length;
+        document.getElementById('s-subs').textContent     = totalSubs;
+        document.getElementById('s-students').textContent = _homeStudents.length;
+        renderHomeStudents(_homeStudents);
     if (quizzes.length) {
         new Chart(document.getElementById('home-chart'), {
             type: 'bar',
@@ -402,13 +447,21 @@ async function loadHomeStats() {
             }
         });
     }
+    } catch(err) {
+        console.error('loadHomeStats error:', err);
+        document.getElementById('s-students').textContent = '!';
+        const grid = document.getElementById('home-students-grid');
+        if (grid) grid.innerHTML = '<p class="empty" style="color:#ff8080">Could not load student data. Check your database connection.</p>';
+    }
 }
 
 // ── FORM DATA (classes + students) ───────────────────────────────────────
 async function loadFormData() {
     const [cr, sr] = await Promise.all([fetch('/teacher/get_classes'), fetch('/teacher/get_students')]);
-    const classes  = await cr.json();
-    allStudents    = await sr.json();
+    const classesRaw  = await cr.json();
+    const studentsRaw = await sr.json();
+    const classes  = Array.isArray(classesRaw)  ? classesRaw  : [];
+    allStudents    = Array.isArray(studentsRaw)  ? studentsRaw : [];
     ['up-class','qz-class','announce-class','aiqz-class'].forEach(id => {
         const sel = document.getElementById(id);
         if (!sel) return;
@@ -799,6 +852,69 @@ async function saveAIQuiz() {
         document.getElementById('ai-gen-status').textContent='';
         aiQCount=0;
         toast('Quiz saved! Students can now take it.', '#00d4aa');
+    }
+}
+
+// ── STUDENT GRID ──────────────────────────────────────────────────────────
+const AVATAR_COLORS = [
+    ['#00d4aa','#7c6aff'],['#7c6aff','#e040c8'],['#e040c8','#00d4aa'],
+    ['#3b82f6','#00d4aa'],['#f59e0b','#e040c8'],['#10b981','#3b82f6']
+];
+function renderHomeStudents(list) {
+    const grid  = document.getElementById('home-students-grid');
+    const badge = document.getElementById('students-count-badge');
+    if (!list.length) {
+        grid.innerHTML = '<p class="empty" style="padding:12px 0">No students registered yet.</p>';
+        if (badge) badge.textContent = '';
+        return;
+    }
+    const total = _homeStudents.length;
+    if (badge) badge.textContent = list.length === total
+        ? total + ' student' + (total !== 1 ? 's' : '') + ' enrolled'
+        : list.length + ' of ' + total + ' shown';
+    grid.innerHTML = list.map((s, i) => {
+        const [c1, c2] = AVATAR_COLORS[i % AVATAR_COLORS.length];
+        const initials = s.username.slice(0,2).toUpperCase();
+        const cls = s.class_name || 'No class';
+        return `<div class="student-pill" style="animation-delay:${i*40}ms">
+            <div class="student-avatar" style="background:linear-gradient(135deg,${c1},${c2})">${initials}</div>
+            <div class="student-info">
+                <div class="student-name">${s.username}</div>
+                <div class="student-class">${cls}</div>
+            </div>
+        </div>`;
+    }).join('');
+}
+
+function filterHomeStudents(q) {
+    const term = q.toLowerCase();
+    const filtered = _homeStudents.filter(s =>
+        s.username.toLowerCase().includes(term) ||
+        (s.class_name||'').toLowerCase().includes(term)
+    );
+    renderHomeStudents(filtered);
+}
+
+function scrollToStudents() {
+    const panel = document.getElementById('students-panel');
+    if (!panel) return;
+    panel.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    panel.style.transition = 'box-shadow 0.4s';
+    panel.style.boxShadow = '0 0 0 2px var(--accent), 0 0 24px rgba(0,212,170,0.3)';
+    setTimeout(() => { panel.style.boxShadow = ''; }, 1800);
+    // If students haven't loaded yet, reload them
+    if (_homeStudents.length === 0) {
+        fetch('/teacher/get_students')
+            .then(r => r.json())
+            .then(data => {
+                _homeStudents = Array.isArray(data) ? data : [];
+                document.getElementById('s-students').textContent = _homeStudents.length;
+                renderHomeStudents(_homeStudents);
+            })
+            .catch(() => {
+                const grid = document.getElementById('home-students-grid');
+                if (grid) grid.innerHTML = '<p class="empty" style="color:#ff8080">Failed to load students. Please refresh the page.</p>';
+            });
     }
 }
 

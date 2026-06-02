@@ -1,3 +1,4 @@
+
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -75,6 +76,7 @@ header{background:var(--panel);border-bottom:1px solid var(--border);padding:12p
 const USERNAME = {{ username|tojson }};
 const ROLE = {{ role|tojson }};
 let currentRoom = null;
+let currentFilter = '';  // username to filter messages by (teacher view only)
 let socket = null;
 const msgs = document.getElementById('msgs');
 const inp = document.getElementById('inp');
@@ -111,35 +113,47 @@ function teacherLabelFromRoom(room) {
   return room || 'Teacher';
 }
 
-async function loadHistory(room) {
+async function loadHistory(room, filter) {
   const res = await fetch('/api/chat/history?room=' + encodeURIComponent(room));
   const data = await res.json();
   clearMsgs();
-  if (!Array.isArray(data) || !data.length) {
+  let rows = Array.isArray(data) ? data : [];
+  // If a student filter is set, show only messages from that student + this teacher
+  if (filter) {
+    rows = rows.filter(m => m.sender_username === filter || m.sender_username === USERNAME);
+  }
+  if (!rows.length) {
     msgs.innerHTML = '<div class="empty">No messages yet. Say hello!</div>';
     return;
   }
-  data.forEach(m => {
+  rows.forEach(m => {
     const sender = m.sender_username || teacherLabelFromRoom(room);
     appendMsg(sender, m.sender_role, m.message_text,
       sender === USERNAME, m.created_at || '');
   });
 }
 
-function selectRoom(room, label) {
+function selectRoom(room, label, filter) {
+  filter = filter || '';
   if (currentRoom && socket) {
     socket.emit('leave_teacher_chat', { room: currentRoom });
   }
   currentRoom = room;
+  currentFilter = filter;
   const displayLabel = label || teacherLabelFromRoom(room);
   document.getElementById('chat-head').textContent = displayLabel;
   document.querySelectorAll('.contact').forEach(el => {
-    el.classList.toggle('on', el.dataset.room === room);
+    const elFilter = el.dataset.filter !== undefined ? el.dataset.filter : null;
+    if (ROLE === 'teacher') {
+      el.classList.toggle('on', el.dataset.room === room && (el.dataset.filter || '') === filter);
+    } else {
+      el.classList.toggle('on', el.dataset.room === room);
+    }
   });
   inp.disabled = false;
   sendbtn.disabled = false;
   inp.placeholder = 'Message ' + displayLabel + '…';
-  loadHistory(room);
+  loadHistory(room, filter);
   if (socket && socket.connected) {
     socket.emit('join_teacher_chat', { room, username: USERNAME, role: ROLE });
   }
@@ -151,19 +165,25 @@ async function initContacts() {
   const el = document.getElementById('contacts');
   if (ROLE === 'teacher') {
     const room = data.room || ('teacher:' + USERNAME);
-    const otherContacts = (data.contacts || []);
-    let html = '<div class="contact on" data-room="' + room + '">Classroom (all students)</div>';
-    if (otherContacts.length) {
-      html += otherContacts.map(c => '<div class="contact" data-room="teacher:' + esc(c.username) + '">' + esc(c.label || c.username) + '</div>').join('');
+    const students = (data.contacts || []);
+    let html = '<div class="contact on" data-room="' + room + '" data-filter="">Classroom (all students)</div>';
+    if (students.length) {
+      html += students.map(c =>
+        '<div class="contact" data-room="' + room + '" data-filter="' + esc(c.username) + '" data-label="' + esc(c.label || c.username) + '">' + esc(c.label || c.username) + '</div>'
+      ).join('');
     }
     el.innerHTML = html;
-    // attach click handlers
-    el.querySelectorAll('.contact').forEach(node => node.addEventListener('click', () => selectRoom(node.dataset.room, node.dataset.label || node.textContent)));
-    document.getElementById('chat-head').textContent = 'Classroom chat';
+    el.querySelectorAll('.contact').forEach(node => node.addEventListener('click', () => {
+      const filter = node.dataset.filter || '';
+      const label = filter ? (node.dataset.label || filter) : 'Classroom (all students)';
+      selectRoom(room, label, filter);
+    }));
+    document.getElementById('chat-head').textContent = 'Classroom (all students)';
     currentRoom = room;
+    currentFilter = '';
     inp.disabled = false;
     sendbtn.disabled = false;
-    loadHistory(room);
+    loadHistory(room, '');
     if (socket && socket.connected) socket.emit('join_teacher_chat', { room, username: USERNAME, role: ROLE });
     return;
   }
@@ -212,6 +232,8 @@ socket.on('disconnect', () => {
 socket.on('receive_teacher_chat', d => {
   if (!d || d.room !== currentRoom) return;
   const sender = d.username || teacherLabelFromRoom(d.room);
+  // If teacher has a student filter active, only show messages from that student or self
+  if (ROLE === 'teacher' && currentFilter && sender !== currentFilter && sender !== USERNAME) return;
   appendMsg(sender, d.role, d.msg, sender === USERNAME, d.time);
 });
 

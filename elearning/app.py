@@ -1,3 +1,4 @@
+
 import os
 import json
 import re
@@ -39,7 +40,7 @@ UPLOAD_TYPE_DIRS = {
     'photo': ('uploads/photo', 'uploads/photos'),
     'pdf': ('uploads/pdf', 'uploads/pdfs'),
 }
-ALLOWED_EXTENSIONS_VIDEO = {'mp4', 'mov', 'avi', 'webm'}
+ALLOWED_EXTENSIONS_VIDEO = {'mp4', 'mov', 'avi', 'webm', 'mkv', 'wmv', 'm4v', 'flv', 'ogv'}
 ALLOWED_EXTENSIONS_PHOTO = {'png', 'jpg', 'jpeg', 'gif', 'webp'}
 ALLOWED_EXTENSIONS_PDF = {'pdf'}
 
@@ -81,14 +82,14 @@ app.config.update(
     UPLOAD_FOLDER_VIDEOS=UPLOAD_FOLDER_VIDEOS,
     UPLOAD_FOLDER_PHOTOS=UPLOAD_FOLDER_PHOTOS,
     UPLOAD_FOLDER_PDFS=UPLOAD_FOLDER_PDFS,
-    MAX_CONTENT_LENGTH=500 * 1024 * 1024   # 500 MB max upload size
+    MAX_CONTENT_LENGTH=4 * 1024 * 1024 * 1024   # 4 GB max upload size (supports ~1hr HD video)
 )
 
 
 # ── Handle file-too-large error gracefully ───────────────────────────────────
 @app.errorhandler(413)
 def request_entity_too_large(e):
-    return jsonify({'error': 'File is too large. Maximum allowed size is 500 MB.'}), 413
+    return jsonify({'error': 'File is too large. Maximum allowed size is 4 GB.'}), 413
 
 def allowed_file(filename, allowed_extensions):
     return '.' in filename and filename.rsplit('.', 1)[1].lower() in allowed_extensions
@@ -913,7 +914,10 @@ def view_content(content_id):
         mime = 'application/pdf'
     elif ft == 'video':
         ext = (safe_name.rsplit('.', 1)[-1].lower()) if '.' in safe_name else 'mp4'
-        mime = {'mp4': 'video/mp4', 'webm': 'video/webm', 'mov': 'video/quicktime', 'avi': 'video/x-msvideo'}.get(ext, 'video/mp4')
+        mime = {'mp4': 'video/mp4', 'webm': 'video/webm', 'mov': 'video/quicktime',
+                'avi': 'video/x-msvideo', 'mkv': 'video/x-matroska',
+                'wmv': 'video/x-ms-wmv', 'm4v': 'video/x-m4v',
+                'flv': 'video/x-flv', 'ogv': 'video/ogg'}.get(ext, 'video/mp4')
     elif ft == 'photo':
         ext = (safe_name.rsplit('.', 1)[-1].lower()) if '.' in safe_name else 'jpeg'
         mime = {'jpg': 'image/jpeg', 'jpeg': 'image/jpeg', 'png': 'image/png',
@@ -2340,22 +2344,25 @@ def api_chat_contacts():
     role = session.get('role')
     username = session.get('username')
     if role == 'teacher':
-        # Return own classroom room plus a list of other teachers as possible contacts
+        # Return own classroom room plus each student as an individual contact
         conn = get_db_connection()
         if not conn:
             return jsonify({'room': teacher_chat_room(username), 'contacts': []})
         cursor = conn.cursor(dictionary=True)
         try:
             cursor.execute(
-                "SELECT username FROM users WHERE role = 'teacher' AND username != %s AND COALESCE(is_approved, 1) = 1 ORDER BY username",
-                (username,)
+                "SELECT username FROM users WHERE role = 'student' ORDER BY username",
             )
-            others = [r['username'] for r in cursor.fetchall()]
-            contacts = [{'username': u, 'label': u} for u in others]
+            students = [r['username'] for r in cursor.fetchall()]
+            # Each student contact shares the same room key as when the student
+            # messages this teacher: teacher:<teacherUsername>
+            contacts = [{'username': s, 'label': s, 'room': teacher_chat_room(username)} for s in students]
             return jsonify({'room': teacher_chat_room(username), 'contacts': contacts})
         finally:
             cursor.close()
             conn.close()
+    # Always return ALL approved teachers so new teachers are immediately
+    # visible in every student's chat list, even before uploading any content.
     conn = get_db_connection()
     if not conn:
         return jsonify({'contacts': []})
@@ -2363,29 +2370,16 @@ def api_chat_contacts():
     try:
         cursor.execute(
             """
-            SELECT DISTINCT c.uploaded_by AS username
-            FROM content c
-            JOIN content_permissions cp ON c.id = cp.content_id
-            WHERE cp.student_username = %s AND c.uploaded_by IS NOT NULL
-            ORDER BY c.uploaded_by
-            """,
-            (username,),
+            SELECT username FROM users
+            WHERE role = 'teacher' AND COALESCE(is_approved, 1) = 1
+            ORDER BY username
+            """
         )
-        teachers = cursor.fetchall()
-        if not teachers:
-            cursor.execute(
-                """
-                SELECT username FROM users
-                WHERE role = 'teacher' AND COALESCE(is_approved, 1) = 1
-                ORDER BY username
-                """
-            )
-            teachers = [{'username': r['username']} for r in cursor.fetchall()]
-        contacts = []
-        for t in teachers:
-            uname = (t.get('username') or '').strip()
-            if uname:
-                contacts.append({'username': uname, 'label': uname})
+        contacts = [
+            {'username': r['username'], 'label': r['username']}
+            for r in cursor.fetchall()
+            if r['username']
+        ]
         return jsonify({'contacts': contacts})
     finally:
         cursor.close()
