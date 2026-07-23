@@ -1,4 +1,3 @@
-
 import os
 import json
 import re
@@ -226,6 +225,25 @@ def ensure_schema():
             cursor.execute(sql)
         except mysql.connector.Error:
             pass
+
+    # Tables that may be missing on older databases (safe / idempotent)
+    table_statements = [
+        """
+        CREATE TABLE IF NOT EXISTS audit_log (
+            id             INT AUTO_INCREMENT PRIMARY KEY,
+            actor_username VARCHAR(100) NOT NULL,
+            action         VARCHAR(100) NOT NULL,
+            details        TEXT         NULL,
+            created_at     TIMESTAMP    DEFAULT CURRENT_TIMESTAMP
+        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+        """,
+    ]
+    for sql in table_statements:
+        try:
+            cursor.execute(sql)
+        except mysql.connector.Error as err:
+            print(f"Schema migration warning: {err}")
+
     conn.commit()
     cursor.close()
     conn.close()
@@ -2503,4 +2521,13 @@ def admin_audit_log():
 if __name__ == '__main__':
     ensure_schema()
     backfill_content_permissions()
+
+    import os
+    import threading
+    import webbrowser
+
+    # Only open the browser once — Flask's debug reloader runs this file twice
+    if os.environ.get('WERKZEUG_RUN_MAIN') != 'true':
+        threading.Timer(1.5, lambda: webbrowser.open('http://127.0.0.1:5001/login')).start()
+
     socketio.run(app, debug=True, port=5001)
