@@ -120,7 +120,6 @@ nav{background:var(--panel);border-bottom:1px solid var(--border);padding:0 20px
     <div class="pc"><div class="pv" id="pv-t">—</div><div class="pl">Tests Done</div><div class="bw"><div class="bf" id="pb-t" style="width:0%;background:linear-gradient(90deg,var(--accent),var(--accent2))"></div></div></div>
     <div class="pc"><div class="pv" id="pv-c">—</div><div class="pl">Content Viewed</div><div class="bw"><div class="bf" id="pb-c" style="width:0%;background:linear-gradient(90deg,var(--green),#00b88a)"></div></div></div>
     <div class="pc"><div class="pv" id="pv-a">—</div><div class="pl">Avg Score %</div><div class="bw"><div class="bf" id="pb-a" style="width:0%;background:linear-gradient(90deg,#f59e0b,#fbbf24)"></div></div></div>
-    <div class="pc"><div class="pv" id="pv-b">—</div><div class="pl">Bookmarks</div></div>
   </div>
   <div class="st" style="font-size:15px">Latest Announcements</div>
   <div id="home-announce" style="margin-bottom:18px"><span class="spin"></span></div>
@@ -168,12 +167,6 @@ nav{background:var(--panel);border-bottom:1px solid var(--border);padding:0 20px
   <div id="scores-list"></div>
 </div>
 
-<!-- SAVED -->
-<div class="page" id="page-saved">
-  <div class="st">🔖 Saved Content</div>
-  <div class="cg" id="saved-list"></div>
-</div>
-
 <!-- SETTINGS -->
 <div class="page" id="page-settings">
   <div class="st">⚙️ Settings</div>
@@ -197,7 +190,6 @@ nav{background:var(--panel);border-bottom:1px solid var(--border);padding:0 20px
 </div>
 
 <script>
-let bmIds=new Set();
 function show(n,b){
   document.querySelectorAll('.page').forEach(p=>p.classList.remove('on'));
   document.querySelectorAll('.nb').forEach(x=>x.classList.remove('on'));
@@ -207,11 +199,9 @@ function show(n,b){
   if(n==='photos') loadCont('photo','pl');
   if(n==='pdfs') loadCont('pdf','dl');
   if(n==='announce') loadAnnouncements();
-  if(n==='saved') loadSaved();
 }
 function esc(s){return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/"/g,'&quot;');}
 window.addEventListener('DOMContentLoaded',async()=>{
-  await loadBmIds();
   loadProg();
   loadAnnouncements(true);
   loadCont('video','vl');
@@ -227,7 +217,6 @@ async function loadProg(){
   document.getElementById('pv-t').textContent=(d.done_tests||0)+'/'+(d.total_tests||0);
   document.getElementById('pv-c').textContent=(d.viewed_content||0)+'/'+(d.total_content||0);
   document.getElementById('pv-a').textContent=(d.avg_score||0)+'%';
-  document.getElementById('pv-b').textContent=d.bookmarks||0;
   const tp=d.total_tests?d.done_tests/d.total_tests*100:0;
   const cp=d.total_content?d.viewed_content/d.total_content*100:0;
   setTimeout(()=>{
@@ -235,10 +224,6 @@ async function loadProg(){
     document.getElementById('pb-c').style.width=cp+'%';
     document.getElementById('pb-a').style.width=(d.avg_score||0)+'%';
   },120);
-}
-async function loadBmIds(){
-  const ids=await fetch('/get_bookmark_ids').then(r=>r.json()).catch(()=>[]);
-  bmIds=new Set(ids);
 }
 async function loadCont(type,lid){
   const el=document.getElementById(lid); el.innerHTML='<span class="spin"></span>';
@@ -253,7 +238,6 @@ async function loadCont(type,lid){
   data.forEach(item=>{
     const div=document.createElement('div');
     div.className='cc'; div.dataset.q=(item.title||'').toLowerCase();
-    const bm=bmIds.has(item.id);
     const t=esc(item.title), u=esc(item.uploaded_by||'Unknown');
     let media='';
     const viewUrl = `/view_content/${item.id}`;
@@ -263,7 +247,7 @@ async function loadCont(type,lid){
     else media=`<div style="display:flex;align-items:center;gap:8px;margin-top:9px"><span style="font-size:22px">📄</span><a href="${viewUrl}" target="_blank" onclick="tv(${item.id})" style="color:var(--accent);font-weight:600;font-size:13px;text-decoration:none">Open: ${t}</a>
       <a class="pdf-btn pdf-dl" href="${dlUrl}" onclick="tv(${item.id})" style="margin-left:8px;color:var(--text);font-size:12px">Download</a></div>
       <iframe class="pdf-prev" src="${viewUrl}" title="${t}" style="margin-top:10px"></iframe>`;
-    div.innerHTML=`<div class="ct"><div><div class="ctitle">${t}</div><div class="tbadge">👤 ${u}</div><div class="cmeta">📅 ${esc(item.time_ago)} &nbsp;·&nbsp; 👁 ${item.view_count||0} views</div></div><button class="bmb${bm?' on':''}" onclick="togBm(${item.id},this)">${bm?'🔖':'🏷'}</button></div>${media}`;
+    div.innerHTML=`<div class="ct"><div><div class="ctitle">${t}</div><div class="tbadge">👤 ${u}</div><div class="cmeta">📅 ${esc(item.time_ago)} &nbsp;·&nbsp; 👁 ${item.view_count||0} views</div></div></div>${media}`;
     el.appendChild(div);
   });
 }
@@ -272,24 +256,6 @@ function flt(inp,lid){
   document.querySelectorAll('#'+lid+' .cc').forEach(c=>c.style.display=c.dataset.q.includes(q)?'':'none');
 }
 async function tv(cid){await fetch('/track_view/'+cid,{method:'POST'});}
-async function togBm(cid,btn){
-  const on=btn.classList.contains('on');
-  await fetch('/bookmark/'+cid,{method:on?'DELETE':'POST'});
-  btn.classList.toggle('on'); btn.textContent=on?'🏷':'🔖';
-  on?bmIds.delete(cid):bmIds.add(cid);
-  document.getElementById('pv-b').textContent=bmIds.size;
-}
-async function loadSaved(){
-  const el=document.getElementById('saved-list'); el.innerHTML='<span class="spin"></span>';
-  const data=await fetch('/get_bookmarks').then(r=>r.json()).catch(()=>[]);
-  el.innerHTML='';
-  if(!data.length){el.innerHTML='<p class="empty">No saved content yet.</p>';return;}
-  data.forEach(item=>{
-    const div=document.createElement('div'); div.className='cc';
-    div.innerHTML=`<div class="ct"><div><div class="ctitle">${item.title}</div><div class="tbadge">👤 ${item.uploaded_by||'Unknown'}</div><div class="cmeta" style="margin-top:3px"><span style="background:rgba(255,255,255,.06);padding:1px 6px;border-radius:6px;font-size:10px;text-transform:capitalize">${item.file_type}</span></div></div><button class="bmb on" onclick="togBm(${item.id},this)">🔖</button></div><div class="cmeta" style="margin-top:6px">📅 ${item.upload_date}</div>`;
-    el.appendChild(div);
-  });
-}
 async function loadTests(lid,compact=false){
   const el=document.getElementById(lid); if(!el) return;
   el.innerHTML='<span class="spin"></span>';

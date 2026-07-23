@@ -49,6 +49,11 @@
         .empty { color:var(--muted);font-size:14px;padding:16px 0; }
         .toast { position:fixed;top:20px;right:20px;padding:14px 20px;border-radius:12px;color:white;font-weight:600;z-index:999;font-size:14px;box-shadow:0 8px 32px rgba(0,0,0,0.4); }
         .pending-alert { background:rgba(251,191,36,0.08);border:1px solid rgba(251,191,36,0.2);border-radius:12px;padding:16px;margin-bottom:20px; }
+        .form-grid { display:grid; gap:16px; max-width:560px; }
+        .form-row { display:flex; flex-direction:column; gap:8px; }
+        .form-row label { color:var(--muted); font-size:13px; }
+        .form-row input { width:100%; padding:12px 14px; border-radius:12px; border:1px solid rgba(255,255,255,0.08); background:rgba(255,255,255,0.04); color:var(--text); }
+        .button-primary { width:max-content; padding:12px 18px; border:none; border-radius:12px; background:linear-gradient(90deg,var(--accent),var(--accent2)); color:#fff; font-weight:700; cursor:pointer; }
     </style>
 </head>
 <body>
@@ -60,6 +65,7 @@
         <button class="nav-btn" onclick="showPage('teachers',this)">👩‍🏫 Teachers</button>
         <button class="nav-btn" onclick="showPage('content',this)">📁 Content</button>
         <button class="nav-btn" onclick="showPage('audit',this)">🔍 Audit</button>
+        <button class="nav-btn" onclick="showPage('account',this)">⚙️ Account</button>
         
     </div>
     <div style="display:flex;gap:10px;align-items:center">
@@ -124,6 +130,33 @@
 <div class="page" id="page-audit">
     <div class="section-title">🔍 Audit Log <span style="font-size:13px;font-weight:400;color:var(--muted)">(last 100 actions)</span></div>
     <div class="card"><div id="audit-list"><div class="spinner"></div></div></div>
+</div>
+
+<!-- ACCOUNT -->
+<div class="page" id="page-account">
+    <div class="section-title">⚙️ Account Settings</div>
+    <div class="card">
+        <div class="form-grid">
+            <div class="form-row">
+                <label for="admin-username">Admin Username</label>
+                <input id="admin-username" type="text" value="{{ username }}" />
+            </div>
+            <div class="form-row">
+                <label for="admin-current-password">Current Password</label>
+                <input id="admin-current-password" type="password" />
+            </div>
+            <div class="form-row">
+                <label for="admin-new-password">New Password</label>
+                <input id="admin-new-password" type="password" placeholder="Leave blank to keep current password" />
+            </div>
+            <div class="form-row">
+                <label for="admin-confirm-password">Confirm New Password</label>
+                <input id="admin-confirm-password" type="password" placeholder="Repeat new password" />
+            </div>
+            <button class="button-primary" onclick="saveAdminProfile()">Save Changes</button>
+            <div id="admin-profile-msg" style="color:var(--muted);font-size:13px;"></div>
+        </div>
+    </div>
 </div>
 
 <!-- SENTIMENT -->
@@ -246,6 +279,52 @@ async function loadAllContent() {
             <button class="btn-del" onclick="adminDeleteContent(${c.id})">Delete</button>
         </td>
     </tr>`).join('');
+}
+
+async function saveAdminProfile() {
+    const msg = document.getElementById('admin-profile-msg');
+    const username = document.getElementById('admin-username').value.trim();
+    const current_password = document.getElementById('admin-current-password').value;
+    const new_password = document.getElementById('admin-new-password').value;
+    const confirm_password = document.getElementById('admin-confirm-password').value;
+    msg.textContent = '';
+    if (!username || !current_password) {
+        msg.textContent = 'Username and current password are required.';
+        return;
+    }
+    if (new_password && new_password !== confirm_password) {
+        msg.textContent = 'New passwords do not match.';
+        return;
+    }
+    try {
+        const formData = new URLSearchParams();
+        formData.append('username', username);
+        formData.append('current_password', current_password);
+        formData.append('new_password', new_password);
+        formData.append('confirm_password', confirm_password);
+        const res = await fetch('/admin/update_profile', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+            body: formData.toString(),
+        });
+        const data = await res.json();
+        if (!res.ok || data.error) {
+            toast(data.error || 'Update failed', '#ef4444');
+            msg.textContent = data.error || 'Update failed.';
+            return;
+        }
+        toast(data.message || 'Profile updated', '#00d4aa');
+        if (data.username) {
+            document.querySelector('.user-chip span').textContent = data.username;
+            document.getElementById('admin-username').value = data.username;
+        }
+        document.getElementById('admin-current-password').value = '';
+        document.getElementById('admin-new-password').value = '';
+        document.getElementById('admin-confirm-password').value = '';
+    } catch (err) {
+        toast('Update failed', '#ef4444');
+        msg.textContent = 'Update failed. Please try again.';
+    }
 }
 
 function adminViewContent(cid, ftype) {

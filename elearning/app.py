@@ -513,6 +513,55 @@ def get_performance_distribution():
 def admin_dashboard():
     return render_template('admin.html', username=session['username'])
 
+@app.route('/admin/update_profile', methods=['POST'])
+@login_required('admin')
+def admin_update_profile():
+    username = request.form.get('username', '').strip()
+    current_password = request.form.get('current_password', '')
+    new_password = request.form.get('new_password', '')
+    confirm_password = request.form.get('confirm_password', '')
+
+    if not username or not current_password:
+        return jsonify({'error': 'Username and current password are required.'}), 400
+    if new_password and new_password != confirm_password:
+        return jsonify({'error': 'New passwords do not match.'}), 400
+    if new_password and len(new_password) < 6:
+        return jsonify({'error': 'New password must be at least 6 characters.'}), 400
+
+    conn = get_db_connection()
+    if not conn:
+        return jsonify({'error': 'Database connection failed.'}), 500
+
+    cursor = conn.cursor(dictionary=True)
+    try:
+        cursor.execute('SELECT id, username, password FROM users WHERE id = %s', (session.get('id'),))
+        row = cursor.fetchone()
+        if not row or not verify_password(row['password'], current_password):
+            return jsonify({'error': 'Current password is incorrect.'}), 400
+
+        if username != row['username']:
+            cursor.execute('SELECT id FROM users WHERE username = %s AND id != %s', (username, session.get('id')))
+            if cursor.fetchone():
+                return jsonify({'error': 'Username is already taken.'}), 400
+
+        update_fields = []
+        update_values = []
+        if username != row['username']:
+            update_fields.append('username = %s')
+            update_values.append(username)
+        if new_password:
+            update_fields.append('password = %s')
+            update_values.append(hash_password(new_password))
+        if update_fields:
+            update_values.append(session.get('id'))
+            cursor.execute(f"UPDATE users SET {', '.join(update_fields)} WHERE id = %s", tuple(update_values))
+            conn.commit()
+            session['username'] = username
+        return jsonify({'message': 'Admin profile updated successfully.', 'username': username})
+    finally:
+        cursor.close()
+        conn.close()
+
 @app.route('/teacher')
 @login_required('teacher')
 def teacher_dashboard():
